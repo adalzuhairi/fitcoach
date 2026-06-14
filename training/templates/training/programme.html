@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Mon programme — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-3xl px-4 py-10">
+
+  <div class="mb-2 flex items-center justify-between">
+    <a href="{% url 'accounts:profil' %}" class="text-sm text-slate-400 hover:text-slate-600">← Profil</a>
+    {% if program.genere_par_ia %}
+      <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-accent">Généré par IA</span>
+    {% endif %}
+  </div>
+
+  <h1 class="text-2xl font-bold text-slate-900">{{ program.nom }}</h1>
+  <p class="mt-1 text-sm text-slate-500">
+    {{ program.get_split_display }} · {{ program.duree_semaines }} semaines · objectif {{ program.get_objectif_display|lower }}
+  </p>
+
+  <div class="mt-6 space-y-5">
+    {% for jour in program.workout_days.all %}
+    <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+      <div class="mb-4 flex items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold text-slate-800">{{ jour.nom }}</h2>
+        <a href="{% url 'training:seance' jour.id %}"
+           class="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+          Démarrer
+        </a>
+      </div>
+
+      <div class="divide-y divide-slate-100">
+        {% for we in jour.exercises.all %}
+        <div class="flex items-center justify-between gap-3 py-2.5">
+          <div>
+            <p class="font-medium text-slate-700">{{ we.exercise.nom }}</p>
+            {% if we.notes %}<p class="text-xs text-slate-400">{{ we.notes }}</p>{% endif %}
+          </div>
+          <div class="shrink-0 text-right text-sm text-slate-500">
+            <span class="font-semibold text-slate-700">{{ we.series }} × {{ we.repetitions }}</span><br>
+            <span class="text-xs">repos {{ we.temps_repos_secondes }} s</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
