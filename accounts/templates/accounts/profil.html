@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Mon profil — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-3xl px-4 py-10">
+
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-900">Mon profil</h1>
+    <div class="flex gap-2">
+      <a href="{% url 'training:programme' %}"
+         class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        Mon programme
+      </a>
+      <a href="{% url 'nutrition:ma_nutrition' %}"
+         class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-50">
+        Ma nutrition
+      </a>
+      <a href="{% url 'accounts:onboarding' %}"
+         class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-50">
+        Modifier
+      </a>
+    </div>
+  </div>
+
+  <!-- Profil -->
+  <div class="mb-6 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+    <dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+      <div><dt class="text-slate-400">Sexe</dt><dd class="font-medium">{{ profile.get_sexe_display }}</dd></div>
+      <div><dt class="text-slate-400">Taille</dt><dd class="font-medium">{{ profile.taille_cm }} cm</dd></div>
+      <div><dt class="text-slate-400">Poids</dt><dd class="font-medium">{{ profile.poids_kg }} kg</dd></div>
+      <div><dt class="text-slate-400">Objectif</dt><dd class="font-medium">{{ profile.get_objectif_display }}</dd></div>
+      <div><dt class="text-slate-400">Niveau</dt><dd class="font-medium">{{ profile.get_niveau_display }}</dd></div>
+      <div><dt class="text-slate-400">Activité</dt><dd class="font-medium">{{ profile.get_activite_display }}</dd></div>
+      <div><dt class="text-slate-400">Jours / semaine</dt><dd class="font-medium">{{ profile.jours_entrainement_par_semaine }}</dd></div>
+      <div><dt class="text-slate-400">Matériel</dt><dd class="font-medium">{{ profile.get_materiel_display }}</dd></div>
+    </dl>
+  </div>
+
+  <!-- Plan nutritionnel -->
+  {% if plan %}
+  <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-4 text-lg font-semibold text-slate-800">Objectifs nutritionnels</h2>
+
+    <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="rounded-xl bg-slate-50 p-4 text-center">
+        <p class="text-2xl font-bold text-accent">{{ plan.calories_cibles }}</p>
+        <p class="text-xs text-slate-500">kcal / jour</p>
+      </div>
+      <div class="rounded-xl bg-slate-50 p-4 text-center">
+        <p class="text-2xl font-bold text-slate-800">{{ plan.proteines_g }} g</p>
+        <p class="text-xs text-slate-500">protéines</p>
+      </div>
+      <div class="rounded-xl bg-slate-50 p-4 text-center">
+        <p class="text-2xl font-bold text-slate-800">{{ plan.glucides_g }} g</p>
+        <p class="text-xs text-slate-500">glucides</p>
+      </div>
+      <div class="rounded-xl bg-slate-50 p-4 text-center">
+        <p class="text-2xl font-bold text-slate-800">{{ plan.lipides_g }} g</p>
+        <p class="text-xs text-slate-500">lipides</p>
+      </div>
+    </div>
+    <p class="mb-6 text-xs text-slate-400">TDEE estimé : {{ plan.tdee_calcule }} kcal/jour</p>
+
+    <h3 class="mb-3 text-sm font-semibold text-slate-700">Répartition par repas</h3>
+    <div class="divide-y divide-slate-100">
+      {% for meal in plan.meals.all %}
+      <div class="flex items-center justify-between py-3">
+        <span class="font-medium text-slate-700">{{ meal.nom }}</span>
+        <span class="text-sm text-slate-500">
+          {{ meal.calories }} kcal · {{ meal.proteines_g }}P / {{ meal.glucides_g }}G / {{ meal.lipides_g }}L
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'logout' %}" class="mt-6">
+    {% csrf_token %}
+    <button type="submit" class="text-sm text-slate-400 hover:text-slate-600">Se déconnecter</button>
+  </form>
+</div>
+{% endblock %}
