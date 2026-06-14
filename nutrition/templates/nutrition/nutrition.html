@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Ma nutrition — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-3xl px-4 py-10">
+
+  <div class="mb-2 flex items-center justify-between">
+    <a href="{% url 'accounts:profil' %}" class="text-sm text-slate-400 hover:text-slate-600">← Profil</a>
+    <a href="{% url 'training:programme' %}" class="text-sm font-medium text-accent hover:text-blue-700">Mon programme →</a>
+  </div>
+
+  <h1 class="text-2xl font-bold text-slate-900">Ma nutrition</h1>
+  <p class="mt-1 text-sm text-slate-500">Objectifs calculés à partir de ton profil · TDEE estimé {{ plan.tdee_calcule }} kcal/jour</p>
+
+  <!-- Objectifs du jour -->
+  <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-2xl font-bold text-accent">{{ plan.calories_cibles }}</p>
+      <p class="text-xs text-slate-500">kcal / jour</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-2xl font-bold text-slate-800">{{ plan.proteines_g }} g</p>
+      <p class="text-xs text-slate-500">protéines</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-2xl font-bold text-slate-800">{{ plan.glucides_g }} g</p>
+      <p class="text-xs text-slate-500">glucides</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-2xl font-bold text-slate-800">{{ plan.lipides_g }} g</p>
+      <p class="text-xs text-slate-500">lipides</p>
+    </div>
+  </div>
+
+  <!-- Répartition calorique des macros -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-3 text-sm font-semibold text-slate-700">Répartition calorique</h2>
+    <div class="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
+      {% for m in macros %}
+      <div class="{{ m.couleur }}" style="width: {{ m.pct }}%"></div>
+      {% endfor %}
+    </div>
+    <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">
+      {% for m in macros %}
+      <span class="flex items-center gap-1.5">
+        <span class="inline-block h-2.5 w-2.5 rounded-full {{ m.couleur }}"></span>
+        {{ m.nom }} · {{ m.grammes }} g ({{ m.pct }} %)
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Répartition par repas -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-1 text-lg font-semibold text-slate-800">Répartition par repas</h2>
+    <p class="mb-3 text-xs text-slate-400">{{ plan.nombre_repas }} repas / jour</p>
+    <div class="divide-y divide-slate-100">
+      {% for meal in plan.meals.all %}
+      <div class="flex items-center justify-between py-3">
+        <span class="font-medium text-slate-700">{{ meal.nom }}</span>
+        <span class="text-right text-sm text-slate-500">
+          <span class="font-semibold text-slate-700">{{ meal.calories }} kcal</span><br>
+          <span class="text-xs">{{ meal.proteines_g }}P / {{ meal.glucides_g }}G / {{ meal.lipides_g }}L</span>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Recettes suggérées -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-3 text-lg font-semibold text-slate-800">Recettes suggérées</h2>
+    {% if recettes %}
+    <div class="grid gap-3 sm:grid-cols-2">
+      {% for r in recettes %}
+      <div class="rounded-xl bg-slate-50 p-4">
+        <div class="flex items-start justify-between gap-2">
+          <p class="font-medium text-slate-800">{{ r.nom }}</p>
+          {% if r.generee_par_ia %}
+            <span class="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-accent">IA</span>
+          {% endif %}
+        </div>
+        {% if r.description %}<p class="mt-1 text-xs text-slate-500">{{ r.description|truncatechars:90 }}</p>{% endif %}
+        <p class="mt-2 text-xs text-slate-500">
+          <span class="font-semibold text-slate-700">{{ r.calories }} kcal</span>
+          · {{ r.proteines_g }}P / {{ r.glucides_g }}G / {{ r.lipides_g }}L
+          {% if r.temps_preparation_min %}· {{ r.temps_preparation_min }} min{% endif %}
+        </p>
+        {% if r.tags %}
+        <div class="mt-2 flex flex-wrap gap-1">
+          {% for tag in r.tags %}
+          <span class="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-slate-200">{{ tag }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-500">
+      Aucune recette dans le catalogue pour l'instant. La génération de recettes par IA
+      selon tes macros et tes préférences arrivera bientôt.
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
