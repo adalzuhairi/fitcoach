@@ -1,0 +1,4 @@
+# Force les fins de ligne LF pour les scripts shell : indispensable pour que
+# entrypoint.sh fonctionne dans le conteneur Linux, même édité sous Windows.
+*.sh text eol=lf
+entrypoint.sh text eol=lf

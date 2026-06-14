@@ -1,11 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from accounts.models import Profile
+from coach import services as coach_services
 
 from . import services
-from .models import NutritionPlan
+from .models import Meal, NutritionPlan, Recipe
 
 
 @login_required
@@ -41,3 +43,30 @@ def ma_nutrition(request):
         "nutrition/nutrition.html",
         {"plan": plan, "recettes": recettes, "macros": macros},
     )
+
+
+@login_required
+def recettes_repas(request, meal_id):
+    """Recettes pour un repas : affiche le catalogue IA, génère à la demande (POST)."""
+    meal = get_object_or_404(Meal, pk=meal_id, plan__user=request.user)
+    # Recettes privées de l'utilisateur (IA ou repli) ; le badge « IA » distingue la source.
+    recettes = Recipe.objects.filter(user=request.user).order_by("-cree_le")[:12]
+    return render(
+        request,
+        "nutrition/recettes.html",
+        {"meal": meal, "recettes": recettes},
+    )
+
+
+@login_required
+@require_POST
+def generer_recettes(request, meal_id):
+    """Déclenche la génération IA de recettes pour un repas (avec fallback)."""
+    meal = get_object_or_404(Meal, pk=meal_id, plan__user=request.user)
+    profile = Profile.objects.filter(user=request.user).first()
+    if profile is None:
+        return redirect("accounts:onboarding")
+
+    recettes = coach_services.generate_recipes(profile, meal, n=3)
+    messages.success(request, f"{len(recettes)} recette(s) générée(s) pour « {meal.nom} ».")
+    return redirect("nutrition:recettes_repas", meal_id=meal.id)

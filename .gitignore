@@ -16,6 +16,8 @@ db.sqlite3-journal
 
 # Environnement
 .env
+.env.prod
+# (.env.prod.example reste versionné comme modèle)
 
 # IDE / OS
 .idea/

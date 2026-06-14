@@ -3,9 +3,11 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.prod
 db.sqlite3
 staticfiles/
 media/
 .git/
 .idea/
 .vscode/
+DEPLOIEMENT.md

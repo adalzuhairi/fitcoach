@@ -240,6 +240,7 @@ def preferences_requises(profile) -> set[str]:
 def recettes_suggerees(profile, limit: int = 6) -> list:
     """Recettes du catalogue pertinentes pour l'objectif et les préférences.
 
+    Ne considère que les recettes privées de l'utilisateur (Recipe.user).
     Filtrage en Python (catalogue restreint, portable SQLite/Postgres) :
     - écarte toute recette qui ne respecte pas une préférence imposée
       (ex: « végétarien » exige le tag `vegetarien`) ;
@@ -253,7 +254,7 @@ def recettes_suggerees(profile, limit: int = 6) -> list:
     prioritaires: list = []
     autres: list = []
 
-    for recipe in Recipe.objects.all():
+    for recipe in Recipe.objects.filter(user=profile.user):
         tags = {str(t).lower() for t in (recipe.tags or [])}
         if requises and not requises.issubset(tags):
             continue

@@ -1,0 +1,21 @@
+{% extends "account/_auth_base.html" %}
+{% block title %}Inscription — FitCoach{% endblock %}
+{% block auth_subtitle %}Crée ton compte pour démarrer ton coaching.{% endblock %}
+
+{% block auth_content %}
+<form method="post" action="{% url 'account_signup' %}" class="auth-form">
+  {% csrf_token %}
+  {{ form.as_p }}
+  {% if redirect_field_value %}
+    <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+  {% endif %}
+  <button type="submit" class="w-full rounded-xl bg-accent px-4 py-2 font-semibold text-white hover:bg-blue-700">
+    Créer mon compte
+  </button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+  Déjà inscrit ?
+  <a href="{% url 'account_login' %}" class="font-medium text-accent hover:text-blue-700">Connecte-toi</a>
+{% endblock %}

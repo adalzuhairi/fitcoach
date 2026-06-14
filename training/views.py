@@ -2,14 +2,15 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from accounts.models import Materiel, Niveau
 from tracking.models import SetLog, WorkoutLog
 
 from . import services
-from .models import Program, WorkoutDay, WorkoutExercise
+from .models import GroupeMusculaire, Program, WorkoutDay, WorkoutExercise
 
 
 @login_required
@@ -108,3 +109,43 @@ def terminer_seance(request, log_id):
     log.save()
     messages.success(request, "Séance enregistrée. Bon boulot 💪")
     return redirect("training:programme")
+
+
+@login_required
+def bibliotheque(request):
+    """Bibliothèque d'exercices : recherche plein texte + filtres combinables."""
+    query = request.GET.get("q", "").strip()
+    groupe = request.GET.get("groupe", "")
+    materiel = request.GET.get("materiel", "")
+    niveau = request.GET.get("niveau", "")
+
+    exercices = services.rechercher_exercices(
+        query=query or None,
+        groupe=groupe or None,
+        materiel=materiel or None,
+        niveau=niveau or None,
+    )
+
+    return render(
+        request,
+        "training/bibliotheque.html",
+        {
+            "exercices": exercices,
+            "query": query,
+            "groupe": groupe,
+            "materiel": materiel,
+            "niveau": niveau,
+            "groupes": GroupeMusculaire.choices,
+            "materiels": Materiel.choices,
+            "niveaux": Niveau.choices,
+        },
+    )
+
+
+@login_required
+def exercice(request, exercice_id):
+    """Fiche technique d'un exercice."""
+    obj = services.exercice_detail(exercice_id)
+    if obj is None:
+        raise Http404("Exercice introuvable.")
+    return render(request, "training/exercice.html", {"exercice": obj})

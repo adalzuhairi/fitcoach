@@ -1,0 +1,97 @@
+# docker-compose de PRODUCTION pour FitCoach.
+#
+# Usage :
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Diffère du docker-compose.yml de dev :
+#   - pas de montage de volume du code (l'image est figée)
+#   - Gunicorn via entrypoint.sh (attend la DB, migrate, collectstatic)
+#   - aucun port exposé sur l'hôte : le reverse proxy TRAEFIK (déjà présent sur
+#     la VM) atteint "web" via le réseau Docker externe et termine le TLS
+#     (HTTPS public sur :4443, certificat Let's Encrypt via DNS challenge Infomaniak)
+#
+# ⚠️ À vérifier côté VM avant de lancer (doivent matcher ta config Traefik) :
+#   - le nom du réseau Docker externe de Traefik  → ci-dessous "frontend"
+#   - le nom du certresolver                       → ci-dessous "infomaniak"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fitcoach}
+      POSTGRES_USER: ${POSTGRES_USER:-fitcoach}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitcoach}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    entrypoint: ["/app/entrypoint.sh"]
+    command:
+      ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60"]
+    env_file:
+      - .env.prod
+    environment:
+      DJANGO_DEBUG: "False"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_USE_REDIS: "True"
+      DJANGO_USE_POSTGRES: "True"
+    volumes:
+      - media_data:/app/media
+    # Pas de port exposé sur l'hôte : Traefik atteint Gunicorn (port 8000) via
+    # le réseau Docker "frontend". Le service est sur deux réseaux :
+    #   - default  : pour joindre db et redis (privé)
+    #   - frontend : partagé avec Traefik (reverse proxy)
+    networks:
+      - default
+      - frontend
+    labels:
+      - "traefik.enable=true"
+      # Réseau que Traefik doit utiliser pour router vers ce conteneur
+      # (obligatoire quand le conteneur est sur plusieurs réseaux).
+      - "traefik.docker.network=frontend"
+      # Routeur HTTPS sur l'entrypoint personnalisé "websecure" (:4443).
+      - "traefik.http.routers.fitcoach.rule=Host(`fitcoach.infotechno.eu`)"
+      - "traefik.http.routers.fitcoach.entrypoints=websecure"
+      - "traefik.http.routers.fitcoach.tls=true"
+      - "traefik.http.routers.fitcoach.tls.certresolver=infomaniak"
+      # Port interne de Gunicorn vers lequel Traefik proxy.
+      - "traefik.http.services.fitcoach.loadbalancer.server.port=8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+
+networks:
+  # Réseau privé de la stack (db, redis, web) — créé automatiquement.
+  default:
+  # Réseau partagé avec Traefik, créé en dehors de cette stack.
+  # ⚠️ Le nom doit correspondre EXACTEMENT au réseau de ton Traefik.
+  frontend:
+    external: true

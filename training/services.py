@@ -11,13 +11,39 @@ import datetime
 import re
 from decimal import Decimal
 
-from .models import GroupeMusculaire, ProgressionType, WorkoutExercise
+from django.db.models import Q
+
+from .models import Exercise, GroupeMusculaire, ProgressionType, WorkoutExercise
 
 # Groupes considérés comme "bas du corps" pour l'incrément de charge.
 GROUPES_BAS_DU_CORPS = {GroupeMusculaire.JAMBES, GroupeMusculaire.MOLLETS}
 
 INCREMENT_HAUT = Decimal("2.5")
 INCREMENT_BAS = Decimal("5")
+
+
+def rechercher_exercices(query=None, groupe=None, materiel=None, niveau=None):
+    """Recherche filtrée dans la bibliothèque d'exercices (filtres combinables).
+
+    - `query` : recherche insensible à la casse sur le nom (FR et EN) ;
+    - `groupe` / `materiel` / `niveau` : filtres exacts (valeurs des TextChoices).
+    Tri par groupe musculaire puis nom. Renvoie un QuerySet (paresseux).
+    """
+    qs = Exercise.objects.all()
+    if query:
+        qs = qs.filter(Q(nom__icontains=query) | Q(nom_en__icontains=query))
+    if groupe:
+        qs = qs.filter(groupe_musculaire=groupe)
+    if materiel:
+        qs = qs.filter(materiel_requis=materiel)
+    if niveau:
+        qs = qs.filter(niveau_minimum=niveau)
+    return qs.order_by("groupe_musculaire", "nom")
+
+
+def exercice_detail(exercice_id):
+    """Fiche complète d'un exercice par son id. Renvoie None si introuvable."""
+    return Exercise.objects.filter(pk=exercice_id).first()
 
 
 def reps_max(repetitions: str) -> int | None:

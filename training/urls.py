@@ -5,6 +5,8 @@ from . import views
 app_name = "training"
 
 urlpatterns = [
+    path("exercices/", views.bibliotheque, name="bibliotheque"),
+    path("exercices/<int:exercice_id>/", views.exercice, name="exercice"),
     path("programme/", views.programme, name="programme"),
     path("seance/<int:workout_day_id>/", views.seance, name="seance"),
     path("seance/serie/", views.enregistrer_serie, name="enregistrer_serie"),

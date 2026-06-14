@@ -171,3 +171,81 @@ class SeanceViewTests(TestCase):
         self.client.force_login(autre)
         resp = self.client.get(reverse("training:seance", args=[self.day.id]))
         self.assertEqual(resp.status_code, 404)
+
+
+class RechercherExercicesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from accounts.models import Materiel, Niveau
+
+        cls.dev = Exercise.objects.create(
+            nom="Développé couché", nom_en="Bench press",
+            groupe_musculaire=GroupeMusculaire.PECTORAUX, type=TypeExercice.COMPOSE,
+            materiel_requis=Materiel.SALLE_COMPLETE, niveau_minimum=Niveau.DEBUTANT,
+        )
+        cls.pompes = Exercise.objects.create(
+            nom="Pompes", nom_en="Push-up",
+            groupe_musculaire=GroupeMusculaire.PECTORAUX, type=TypeExercice.COMPOSE,
+            materiel_requis=Materiel.POIDS_DU_CORPS, niveau_minimum=Niveau.DEBUTANT,
+        )
+        cls.squat = Exercise.objects.create(
+            nom="Squat", nom_en="Back squat",
+            groupe_musculaire=GroupeMusculaire.JAMBES, type=TypeExercice.COMPOSE,
+            materiel_requis=Materiel.SALLE_COMPLETE, niveau_minimum=Niveau.INTERMEDIAIRE,
+        )
+
+    def test_sans_filtre_retourne_tout_trie(self):
+        res = list(services.rechercher_exercices())
+        self.assertEqual(len(res), 3)
+        # Tri groupe_musculaire puis nom : jambes < pectoraux.
+        self.assertEqual(res[0], self.squat)
+
+    def test_filtre_groupe(self):
+        res = list(services.rechercher_exercices(groupe=GroupeMusculaire.PECTORAUX))
+        self.assertCountEqual(res, [self.dev, self.pompes])
+
+    def test_filtre_materiel(self):
+        from accounts.models import Materiel
+
+        res = list(services.rechercher_exercices(materiel=Materiel.POIDS_DU_CORPS))
+        self.assertEqual(res, [self.pompes])
+
+    def test_filtre_niveau(self):
+        from accounts.models import Niveau
+
+        res = list(services.rechercher_exercices(niveau=Niveau.INTERMEDIAIRE))
+        self.assertEqual(res, [self.squat])
+
+    def test_filtres_combines(self):
+        from accounts.models import Materiel
+
+        res = list(services.rechercher_exercices(
+            groupe=GroupeMusculaire.PECTORAUX, materiel=Materiel.SALLE_COMPLETE
+        ))
+        self.assertEqual(res, [self.dev])
+
+    def test_recherche_texte_fr(self):
+        res = list(services.rechercher_exercices(query="pompes"))
+        self.assertEqual(res, [self.pompes])
+
+    def test_recherche_texte_en(self):
+        res = list(services.rechercher_exercices(query="squat"))  # "Back squat" en EN
+        self.assertEqual(res, [self.squat])
+
+    def test_recherche_insensible_casse(self):
+        res = list(services.rechercher_exercices(query="DÉVELOPPÉ"))
+        self.assertEqual(res, [self.dev])
+
+    def test_aucun_resultat(self):
+        self.assertEqual(list(services.rechercher_exercices(query="inexistant")), [])
+
+
+class ExerciceDetailTests(TestCase):
+    def test_trouve(self):
+        ex = Exercise.objects.create(
+            nom="Curl", groupe_musculaire=GroupeMusculaire.BICEPS, type=TypeExercice.ISOLATION,
+        )
+        self.assertEqual(services.exercice_detail(ex.id), ex)
+
+    def test_introuvable(self):
+        self.assertIsNone(services.exercice_detail(999999))

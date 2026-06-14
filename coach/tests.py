@@ -10,6 +10,7 @@ from django.test import TestCase, override_settings
 from accounts.models import Activite, Materiel, Niveau, Objectif, Sexe
 from accounts.models import Profile
 from coach import services
+from nutrition.models import Meal, NutritionPlan, Recipe
 from training.models import Exercise, Program, Split, WorkoutExercise
 
 User = get_user_model()
@@ -146,3 +147,90 @@ class GenerateProgramIaTests(TestCase):
         we = WorkoutExercise.objects.get(exercise__nom="Développé couché barre")
         self.assertEqual(we.repetitions, "6-10")
         self.assertEqual(we.temps_repos_secondes, 150)
+
+
+def _recette(nom, **kw):
+    base = dict(
+        nom=nom,
+        description="desc",
+        instructions="1. étape",
+        temps_preparation_min=15,
+        portions=1,
+        calories=500,
+        proteines_g=40,
+        glucides_g=50,
+        lipides_g=15,
+        ingredients=[{"nom": "Poulet", "quantite": "150", "unite": "g"}],
+        tags=["rapide", "halal"],
+    )
+    base.update(kw)
+    return base
+
+
+class GenerateRecipesTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user("ahmed", password="x")
+        self.profile = _profile(
+            self.user,
+            allergies_alimentaires="arachides, lactose",
+            preferences_alimentaires="halal, sans porc",
+        )
+        plan = NutritionPlan.objects.create(
+            user=self.user, tdee_calcule=2500, calories_cibles=2800,
+            proteines_g=160, glucides_g=350, lipides_g=80, nombre_repas=4,
+        )
+        self.meal = Meal.objects.create(
+            plan=plan, nom="Déjeuner", ordre=2,
+            calories=700, proteines_g=45, glucides_g=80, lipides_g=20,
+        )
+        self.reponse = {"recettes": [_recette("Poulet riz"), _recette("Bowl thon"), _recette("Omelette")]}
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_json_valide_cree_recipes(self):
+        with mock.patch.object(services, "_call_claude_recipes", return_value=self.reponse) as m:
+            recettes = services.generate_recipes(self.profile, self.meal, n=3)
+
+        m.assert_called_once()
+        self.assertEqual(len(recettes), 3)
+        self.assertEqual(Recipe.objects.filter(generee_par_ia=True).count(), 3)
+        self.assertTrue(all(r.generee_par_ia for r in recettes))
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_json_invalide_bascule_sur_fallback(self):
+        # Une erreur de parsing/appel doit basculer sur les recettes de repli.
+        with mock.patch.object(services, "_call_claude_recipes", side_effect=ValueError("bad json")):
+            recettes = services.generate_recipes(self.profile, self.meal, n=3)
+
+        self.assertEqual(len(recettes), 3)
+        self.assertTrue(all(not r.generee_par_ia for r in recettes))
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_sans_cle_api_utilise_fallback(self):
+        with mock.patch.object(services, "_call_claude_recipes") as m:
+            recettes = services.generate_recipes(self.profile, self.meal, n=2)
+
+        m.assert_not_called()
+        self.assertEqual(len(recettes), 2)
+        self.assertTrue(all(not r.generee_par_ia for r in recettes))
+
+    def test_prompt_contient_allergies_et_preferences(self):
+        prompt = services._build_recipe_prompt(self.profile, self.meal, 3)
+        self.assertIn("arachides", prompt)
+        self.assertIn("lactose", prompt)
+        self.assertIn("halal", prompt)
+        # Macros cibles du repas présentes dans le prompt.
+        self.assertIn("700", prompt)
+        self.assertIn("45", prompt)
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_cache_evite_un_second_appel_api(self):
+        with mock.patch.object(services, "_call_claude_recipes", return_value=self.reponse) as m:
+            services.generate_recipes(self.profile, self.meal, n=3)
+            recettes2 = services.generate_recipes(self.profile, self.meal, n=3)
+
+        # Deuxième appel servi par le cache : l'API n'est appelée qu'une fois.
+        m.assert_called_once()
+        self.assertEqual(len(recettes2), 3)
+        # Dédoublonnage par nom : pas de duplication en base.
+        self.assertEqual(Recipe.objects.count(), 3)

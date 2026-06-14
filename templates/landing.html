@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}FitCoach — Ton coach sportif intelligent{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-gradient-to-b from-white to-slate-50">
+
+  <!-- Barre de navigation -->
+  <header class="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
+    <span class="text-xl font-bold text-slate-900">FitCoach</span>
+    <nav class="flex items-center gap-2">
+      <a href="{% url 'account_login' %}"
+         class="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+        Se connecter
+      </a>
+      <a href="{% url 'account_signup' %}"
+         class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        Créer un compte
+      </a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section class="mx-auto max-w-3xl px-4 py-16 text-center sm:py-24">
+    <span class="inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-accent">
+      Coaching sportif intelligent
+    </span>
+    <h1 class="mt-5 text-4xl font-bold leading-tight text-slate-900 sm:text-5xl">
+      Ton coach de musculation,<br>personnalisé par l'IA
+    </h1>
+    <p class="mx-auto mt-5 max-w-xl text-lg text-slate-500">
+      Programmes d'entraînement sur mesure, plans nutritionnels adaptés à tes objectifs
+      et suivi de progression — le tout au creux de ta main, à la salle comme à la maison.
+    </p>
+    <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <a href="{% url 'account_signup' %}"
+         class="w-full rounded-xl bg-accent px-6 py-3 font-semibold text-white hover:bg-blue-700 sm:w-auto">
+        Commencer gratuitement
+      </a>
+      <a href="{% url 'account_login' %}"
+         class="w-full rounded-xl bg-white px-6 py-3 font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-50 sm:w-auto">
+        J'ai déjà un compte
+      </a>
+    </div>
+  </section>
+
+  <!-- Fonctionnalités -->
+  <section class="mx-auto max-w-5xl px-4 pb-20">
+    <div class="grid gap-5 sm:grid-cols-3">
+      <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl">🏋️</div>
+        <h3 class="mt-4 font-semibold text-slate-800">Entraînement personnalisé</h3>
+        <p class="mt-2 text-sm text-slate-500">
+          Un programme généré selon ton niveau, ton matériel et tes objectifs : exercices,
+          séries, répétitions et temps de repos. Mode séance optimisé pour la salle.
+        </p>
+      </div>
+      <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl">🥗</div>
+        <h3 class="mt-4 font-semibold text-slate-800">Nutrition adaptée</h3>
+        <p class="mt-2 text-sm text-slate-500">
+          Calcul de tes calories et macros, répartition par repas et recettes générées
+          selon tes préférences et allergies.
+        </p>
+      </div>
+      <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl">📈</div>
+        <h3 class="mt-4 font-semibold text-slate-800">Suivi de progression</h3>
+        <p class="mt-2 text-sm text-slate-500">
+          Charges par exercice, volume hebdomadaire, poids et mensurations : visualise
+          tes progrès et applique la progression automatique.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pied de page -->
+  <footer class="border-t border-slate-100 py-8 text-center text-sm text-slate-400">
+    FitCoach — entraîne-toi plus intelligemment.
+  </footer>
+</div>
+{% endblock %}

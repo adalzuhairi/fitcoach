@@ -15,6 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# entrypoint de prod (attente DB → migrate → collectstatic → gunicorn).
+# Utilisé par docker-compose.prod.yml ; ignoré en dev (commande surchargée).
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 8000
 
 # Le serveur de dev est lancé via docker-compose (commande surchargée).

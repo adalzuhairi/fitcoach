@@ -7,11 +7,14 @@ l'orchestration est testée avec un stub de Profile (pas d'accès base).
 import datetime
 from types import SimpleNamespace
 
+from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 
 from accounts.models import Activite, Niveau, Objectif, Sexe
 from nutrition import services
 from nutrition.models import Recipe
+
+User = get_user_model()
 
 
 class CalculerAgeTests(SimpleTestCase):
@@ -179,13 +182,19 @@ class PreferencesRequisesTests(SimpleTestCase):
 
 
 class RecettesSuggereesTests(TestCase):
-    def _recette(self, nom, tags):
+    def setUp(self):
+        self.user = User.objects.create_user(username="ahmed", password="x")
+
+    def _recette(self, nom, tags, user=None):
         return Recipe.objects.create(
+            user=user or self.user,
             nom=nom, calories=500, proteines_g=40, glucides_g=50, lipides_g=15, tags=tags
         )
 
-    def _profile(self, objectif=Objectif.PRISE_DE_MASSE, preferences=""):
-        return SimpleNamespace(objectif=objectif, preferences_alimentaires=preferences)
+    def _profile(self, objectif=Objectif.PRISE_DE_MASSE, preferences="", user=None):
+        return SimpleNamespace(
+            objectif=objectif, preferences_alimentaires=preferences, user=user or self.user
+        )
 
     def test_objectif_priorise(self):
         self._recette("Salade", tags=["seche"])
@@ -210,3 +219,10 @@ class RecettesSuggereesTests(TestCase):
 
     def test_catalogue_vide(self):
         self.assertEqual(services.recettes_suggerees(self._profile()), [])
+
+    def test_recettes_d_un_autre_user_exclues(self):
+        autre = User.objects.create_user(username="bob", password="x")
+        self._recette("Recette de Bob", tags=["prise_de_masse"], user=autre)
+        mienne = self._recette("Ma recette", tags=["prise_de_masse"])
+        # Seules les recettes de l'utilisateur du profil sont suggérées.
+        self.assertEqual(services.recettes_suggerees(self._profile()), [mienne])

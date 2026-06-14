@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Mes mesures — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-3xl px-4 py-10">
+
+  <a href="{% url 'tracking:dashboard' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Tableau de bord</a>
+  <h1 class="text-2xl font-bold text-slate-900">Mes mesures</h1>
+  <p class="mt-1 text-sm text-slate-500">Note ton poids régulièrement pour suivre ta progression.</p>
+
+  <!-- Saisie rapide -->
+  <form method="post" enctype="multipart/form-data"
+        class="mt-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100"
+        x-data="{ details: false }">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="{{ form.date.id_for_label }}" class="mb-1 block text-sm font-medium text-slate-700">Date</label>
+        {{ form.date }}
+        {% for e in form.date.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label for="{{ form.poids_kg.id_for_label }}" class="mb-1 block text-sm font-medium text-slate-700">Poids (kg)</label>
+        {{ form.poids_kg }}
+        {% for e in form.poids_kg.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <button type="button" @click="details = !details"
+            class="mt-4 text-sm font-medium text-accent hover:text-blue-700">
+      <span x-show="!details">+ Ajouter mensurations / photo</span>
+      <span x-show="details" x-cloak>− Masquer</span>
+    </button>
+
+    <div x-show="details" x-cloak class="mt-4 grid grid-cols-2 gap-4">
+      {% for field in form %}
+        {% if field.name != 'date' and field.name != 'poids_kg' %}
+        <div {% if field.name == 'photo' %}class="col-span-2"{% endif %}>
+          <label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-medium text-slate-700">{{ field.label }}</label>
+          {{ field }}
+          {% for e in field.errors %}<p class="mt-1 text-xs text-red-600">{{ e }}</p>{% endfor %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <button type="submit"
+            class="mt-5 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+      Enregistrer
+    </button>
+  </form>
+
+  <!-- Graphiques -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <div class="mb-3 flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-slate-700">Progression</h2>
+      {% if historique|length >= 2 %}
+      <select id="metric-select"
+              class="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:border-accent focus:outline-none">
+        <option value="poids" data-unite="kg">Poids</option>
+        {% for champ, label in tours_disponibles %}
+        <option value="{{ champ }}" data-unite="cm">{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+    </div>
+    {% if historique|length >= 2 %}
+      <canvas id="chart-mesures" height="120"></canvas>
+    {% else %}
+      <p class="text-sm text-slate-500">Ajoute au moins deux pesées pour visualiser tes courbes.</p>
+    {% endif %}
+  </div>
+
+  <!-- Historique -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-3 text-sm font-semibold text-slate-700">Historique</h2>
+    {% if mesures %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+            <th class="py-2 pr-3 font-medium">Date</th>
+            <th class="py-2 pr-3 font-medium">Poids</th>
+            <th class="py-2 pr-3 font-medium">Taille</th>
+            <th class="py-2 pr-3 font-medium">Bras</th>
+            <th class="py-2 pr-3 font-medium">Poitrine</th>
+            <th class="py-2 pr-3 font-medium">Cuisses</th>
+            <th class="py-2 font-medium"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for m in mesures %}
+          <tr class="text-slate-700">
+            <td class="whitespace-nowrap py-2.5 pr-3">{{ m.date|date:"d/m/Y" }}</td>
+            <td class="py-2.5 pr-3 font-medium">{{ m.poids_kg }} kg</td>
+            <td class="py-2.5 pr-3 text-slate-500">{{ m.tour_taille|default:"—" }}</td>
+            <td class="py-2.5 pr-3 text-slate-500">{{ m.tour_bras|default:"—" }}</td>
+            <td class="py-2.5 pr-3 text-slate-500">{{ m.tour_poitrine|default:"—" }}</td>
+            <td class="py-2.5 pr-3 text-slate-500">{{ m.tour_cuisses|default:"—" }}</td>
+            <td class="whitespace-nowrap py-2.5 text-right">
+              {% if m.photo %}<a href="{{ m.photo.url }}" target="_blank" class="mr-2 text-xs text-slate-400 hover:text-slate-600">📷</a>{% endif %}
+              <a href="{% url 'tracking:modifier_mesure' m.pk %}" class="text-xs font-medium text-accent hover:text-blue-700">Modifier</a>
+              <form method="post" action="{% url 'tracking:supprimer_mesure' m.pk %}" class="ml-2 inline"
+                    onsubmit="return confirm('Supprimer cette mesure ?');">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-slate-400 hover:text-red-600">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-500">Aucune mesure enregistrée pour l'instant.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if historique|length >= 2 %}
+  {{ historique|json_script:"donnees-mesures" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>
+    (function () {
+      const points = JSON.parse(document.getElementById("donnees-mesures").textContent);
+      const select = document.getElementById("metric-select");
+      const labels = points.map((p) => p.date);
+
+      const chart = new Chart(document.getElementById("chart-mesures"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            data: points.map((p) => p.poids),
+            borderColor: "#2563EB",
+            backgroundColor: "rgba(37, 99, 235, 0.1)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            spanGaps: true,
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { callback: (v) => v + " kg" } } },
+        },
+      });
+
+      select.addEventListener("change", function () {
+        const metric = select.value;
+        const unite = select.options[select.selectedIndex].dataset.unite;
+        chart.data.datasets[0].data = points.map((p) => p[metric]);
+        chart.options.scales.y.ticks.callback = (v) => v + " " + unite;
+        chart.update();
+      });
+    })();
+  </script>
+{% endif %}
+{% endblock %}

@@ -36,6 +36,7 @@ from training.models import (
 )
 
 from .fallback_programs import build_fallback_program
+from .fallback_recipes import build_fallback_recipes
 
 logger = logging.getLogger(__name__)
 
@@ -254,3 +255,185 @@ def generate_program(profile) -> Program:
             )
 
     return program
+
+
+# ---------------------------------------------------------------------------
+# Génération de recettes (generate_recipes)
+# ---------------------------------------------------------------------------
+
+# Schéma JSON strict imposé à Claude pour les recettes (structured outputs).
+RECIPE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "recettes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "nom": {"type": "string"},
+                    "description": {"type": "string"},
+                    "instructions": {"type": "string"},
+                    "temps_preparation_min": {"type": "integer"},
+                    "portions": {"type": "integer"},
+                    "calories": {"type": "integer"},
+                    "proteines_g": {"type": "integer"},
+                    "glucides_g": {"type": "integer"},
+                    "lipides_g": {"type": "integer"},
+                    "ingredients": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "nom": {"type": "string"},
+                                "quantite": {"type": "string"},
+                                "unite": {"type": "string"},
+                            },
+                            "required": ["nom", "quantite", "unite"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "tags": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": [
+                    "nom",
+                    "description",
+                    "instructions",
+                    "temps_preparation_min",
+                    "portions",
+                    "calories",
+                    "proteines_g",
+                    "glucides_g",
+                    "lipides_g",
+                    "ingredients",
+                    "tags",
+                ],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["recettes"],
+    "additionalProperties": False,
+}
+
+
+def _build_recipe_prompt(profile, meal, n: int) -> str:
+    """Construit le prompt de génération de recettes pour un repas donné."""
+    allergies = profile.allergies_alimentaires.strip() or "aucune"
+    preferences = profile.preferences_alimentaires.strip() or "aucune"
+    return (
+        f"Génère {n} recettes différentes pour le repas « {meal.nom} ».\n\n"
+        "Chaque recette doit respecter approximativement ces apports cibles "
+        "(valeurs par portion) :\n"
+        f"- Calories : {meal.calories} kcal\n"
+        f"- Protéines : {meal.proteines_g} g\n"
+        f"- Glucides : {meal.glucides_g} g\n"
+        f"- Lipides : {meal.lipides_g} g\n\n"
+        "Contraintes alimentaires STRICTES :\n"
+        f"- Allergies à éviter absolument : {allergies}\n"
+        f"- Préférences à respecter : {preferences}\n\n"
+        "Pour chaque recette, fournis : un nom, une courte description, des "
+        "instructions étape par étape, le temps de préparation en minutes, le "
+        "nombre de portions, les valeurs nutritionnelles par portion (calories, "
+        "protéines, glucides, lipides en grammes), la liste des ingrédients "
+        "(nom, quantité, unité) et des tags pertinents (ex: rapide, halal, "
+        "vegetarien, prise_de_masse, seche)."
+    )
+
+
+def _recipe_cache_key(profile, meal, n: int) -> str:
+    """Clé de cache déterministe (macros du repas + contraintes alimentaires + n)."""
+    parts = "|".join(
+        str(v)
+        for v in (
+            meal.calories,
+            meal.proteines_g,
+            meal.glucides_g,
+            meal.lipides_g,
+            profile.allergies_alimentaires.strip(),
+            profile.preferences_alimentaires.strip(),
+            n,
+        )
+    )
+    digest = hashlib.sha256(parts.encode("utf-8")).hexdigest()[:16]
+    return f"coach:recipes:{digest}"
+
+
+def _call_claude_recipes(prompt: str) -> dict:
+    """Appelle l'API Claude et renvoie les recettes en dict (JSON strict).
+
+    Lève une exception si l'appel échoue (gestion du fallback par l'appelant).
+    Le SDK retente automatiquement (max_retries=1).
+    """
+    import anthropic
+
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, max_retries=1)
+    response = client.messages.create(
+        model=settings.ANTHROPIC_MODEL,
+        max_tokens=4000,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+        output_config={
+            "format": {"type": "json_schema", "schema": RECIPE_SCHEMA},
+        },
+    )
+    text = next(block.text for block in response.content if block.type == "text")
+    return json.loads(text)
+
+
+def _get_recipes_data(profile, meal, n: int) -> tuple[list, bool]:
+    """Récupère les recettes : cache → Claude → fallback. Renvoie (liste, genere_par_ia)."""
+    key = _recipe_cache_key(profile, meal, n)
+
+    cached = cache.get(key)
+    if cached is not None:
+        return cached, True
+
+    if settings.ANTHROPIC_API_KEY:
+        try:
+            data = _call_claude_recipes(_build_recipe_prompt(profile, meal, n))
+            recettes = data["recettes"]
+            cache.set(key, recettes, CACHE_TTL_SECONDES)
+            return recettes, True
+        except Exception:  # noqa: BLE001 — on bascule sur le fallback quoi qu'il arrive
+            logger.exception("Échec de la génération de recettes IA, bascule sur le fallback")
+    else:
+        logger.warning("ANTHROPIC_API_KEY absente — utilisation des recettes de fallback")
+
+    return build_fallback_recipes(meal, n), False
+
+
+@transaction.atomic
+def generate_recipes(profile, meal, n: int = 3) -> list:
+    """Génère et sauvegarde `n` recettes adaptées aux macros d'un repas.
+
+    Respecte allergies et préférences via le prompt. Met en cache la réponse IA
+    par signature (macros + contraintes) pour éviter les appels redondants.
+    Dédoublonne par nom (catalogue Recipe global) : une recette déjà connue est
+    réutilisée plutôt que dupliquée. Renvoie la liste des Recipe.
+    """
+    from nutrition.models import Recipe
+
+    data, genere_par_ia = _get_recipes_data(profile, meal, n)
+
+    recettes = []
+    for r in data[:n]:
+        recipe, _ = Recipe.objects.get_or_create(
+            user=profile.user,
+            nom=r["nom"].strip(),
+            defaults={
+                "description": r.get("description", ""),
+                "instructions": r.get("instructions", ""),
+                "temps_preparation_min": r.get("temps_preparation_min", 0) or 0,
+                "portions": r.get("portions", 1) or 1,
+                "calories": int(r.get("calories", 0)),
+                "proteines_g": int(r.get("proteines_g", 0)),
+                "glucides_g": int(r.get("glucides_g", 0)),
+                "lipides_g": int(r.get("lipides_g", 0)),
+                "ingredients": r.get("ingredients", []) or [],
+                "tags": r.get("tags", []) or [],
+                "generee_par_ia": genere_par_ia,
+            },
+        )
+        recettes.append(recipe)
+
+    return recettes

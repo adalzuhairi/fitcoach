@@ -6,6 +6,7 @@
 
   <div class="mb-2 flex items-center justify-between">
     <a href="{% url 'accounts:profil' %}" class="text-sm text-slate-400 hover:text-slate-600">← Profil</a>
+    <a href="{% url 'training:bibliotheque' %}" class="text-sm font-medium text-accent hover:text-blue-700">Bibliothèque →</a>
     {% if program.genere_par_ia %}
       <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-accent">Généré par IA</span>
     {% endif %}
@@ -31,7 +32,8 @@
         {% for we in jour.exercises.all %}
         <div class="flex items-center justify-between gap-3 py-2.5">
           <div>
-            <p class="font-medium text-slate-700">{{ we.exercise.nom }}</p>
+            <a href="{% url 'training:exercice' we.exercise.id %}"
+               class="font-medium text-slate-700 hover:text-accent">{{ we.exercise.nom }}</a>
             {% if we.notes %}<p class="text-xs text-slate-400">{{ we.notes }}</p>{% endif %}
           </div>
           <div class="shrink-0 text-right text-sm text-slate-500">

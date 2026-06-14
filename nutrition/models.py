@@ -58,8 +58,19 @@ class Meal(models.Model):
 
 
 class Recipe(models.Model):
-    """Recette (catalogue + génération IA), valeurs nutritionnelles par portion."""
+    """Recette privée d'un utilisateur (génération IA), valeurs nutritionnelles par portion.
 
+    Chaque recette appartient à un utilisateur : générée selon ses macros, allergies
+    et préférences, elle ne doit pas être visible par les autres (confidentialité +
+    pertinence). La bibliothèque d'exercices (Exercise) reste, elle, globale.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="recipes",
+        verbose_name="utilisateur",
+    )
     nom = models.CharField("nom", max_length=150)
     description = models.TextField("description", blank=True)
     instructions = models.TextField("instructions", blank=True)

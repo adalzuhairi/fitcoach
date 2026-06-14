@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load training_extras %}
+{% block title %}{{ exercice.nom }} — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-2xl px-4 py-10">
+
+  <a href="{% url 'training:bibliotheque' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Bibliothèque</a>
+
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">{{ exercice.nom }}</h1>
+      {% if exercice.nom_en %}<p class="mt-1 text-sm text-slate-400">{{ exercice.nom_en }}</p>{% endif %}
+    </div>
+    <span class="shrink-0 rounded-full px-3 py-1 text-sm font-medium {{ exercice.groupe_musculaire|badge_groupe }}">
+      {{ exercice.get_groupe_musculaire_display }}
+    </span>
+  </div>
+
+  <!-- Caractéristiques -->
+  <div class="mt-6 grid grid-cols-3 gap-3">
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-xs text-slate-400">Type</p>
+      <p class="mt-1 font-semibold text-slate-700">{{ exercice.get_type_display }}</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-xs text-slate-400">Matériel</p>
+      <p class="mt-1 font-semibold text-slate-700">{{ exercice.get_materiel_requis_display }}</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+      <p class="text-xs text-slate-400">Niveau min.</p>
+      <p class="mt-1 font-semibold text-slate-700">{{ exercice.get_niveau_minimum_display }}</p>
+    </div>
+  </div>
+
+  <!-- Technique -->
+  <div class="mt-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-2 text-lg font-semibold text-slate-800">Technique d'exécution</h2>
+    {% if exercice.description_technique %}
+      <p class="whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ exercice.description_technique }}</p>
+    {% else %}
+      <p class="text-sm text-slate-400">Description technique à venir.</p>
+    {% endif %}
+  </div>
+
+  {% if exercice.video_url %}
+  <a href="{{ exercice.video_url }}" target="_blank" rel="noopener"
+     class="mt-4 inline-block rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-50">
+    ▶ Voir la vidéo de démonstration
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

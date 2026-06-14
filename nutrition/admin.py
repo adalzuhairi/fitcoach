@@ -18,6 +18,7 @@ class NutritionPlanAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ("nom", "calories", "proteines_g", "temps_preparation_min", "generee_par_ia")
+    list_display = ("nom", "user", "calories", "proteines_g", "temps_preparation_min", "generee_par_ia")
     list_filter = ("generee_par_ia",)
-    search_fields = ("nom",)
+    search_fields = ("nom", "user__username", "user__email")
+    raw_id_fields = ("user",)

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-3xl px-4 py-10">
+
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Bonjour {{ request.user.get_short_name|default:request.user.username }} 👋</h1>
+      <p class="mt-1 text-sm text-slate-500">Voici ton récap du jour.</p>
+    </div>
+    <a href="{% url 'accounts:profil' %}"
+       class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-50">
+      Profil
+    </a>
+  </div>
+
+  <!-- Prochaine séance -->
+  <div class="mb-4 rounded-xl bg-sidebar p-6 text-white shadow-sm">
+    <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Prochaine séance</p>
+    {% if prochaine_seance %}
+      <h2 class="mt-1 text-xl font-bold">{{ prochaine_seance.nom }}</h2>
+      <p class="mt-1 text-sm text-slate-300">
+        {{ prochaine_seance.exercises.count }} exercice{{ prochaine_seance.exercises.count|pluralize }}
+        · {{ program.get_split_display }}
+      </p>
+      <a href="{% url 'training:seance' prochaine_seance.id %}"
+         class="mt-4 inline-block rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        Démarrer la séance
+      </a>
+    {% else %}
+      <h2 class="mt-1 text-xl font-bold">Aucun programme actif</h2>
+      <p class="mt-1 text-sm text-slate-300">Complète ton profil pour générer ton programme.</p>
+      <a href="{% url 'accounts:onboarding' %}"
+         class="mt-4 inline-block rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        Compléter mon profil
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2">
+
+    <!-- Objectifs du jour -->
+    <a href="{% url 'nutrition:ma_nutrition' %}"
+       class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100 hover:ring-slate-200">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Objectifs du jour</p>
+        <span class="text-xs text-accent">Nutrition →</span>
+      </div>
+      {% if plan %}
+        <p class="mt-2 text-3xl font-bold text-accent">{{ plan.calories_cibles }} <span class="text-base font-medium text-slate-400">kcal</span></p>
+        <p class="mt-1 text-sm text-slate-500">
+          {{ plan.proteines_g }}P / {{ plan.glucides_g }}G / {{ plan.lipides_g }}L
+        </p>
+      {% else %}
+        <p class="mt-2 text-sm text-slate-500">Aucun plan nutritionnel actif.</p>
+      {% endif %}
+    </a>
+
+    <!-- Poids actuel -->
+    <a href="{% url 'tracking:mesures' %}"
+       class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100 hover:ring-slate-200">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Poids actuel</p>
+        <span class="text-xs text-accent">Mesures →</span>
+      </div>
+      {% if poids_actuel %}
+        <p class="mt-2 text-3xl font-bold text-slate-800">{{ poids_actuel }} <span class="text-base font-medium text-slate-400">kg</span></p>
+      {% else %}
+        <p class="mt-2 text-sm text-slate-500">Pas encore de pesée — ajoute-en une.</p>
+      {% endif %}
+    </a>
+  </div>
+
+  <!-- Mini-graphique de progression -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-slate-700">Évolution du poids</h2>
+      <a href="{% url 'tracking:progression' %}" class="text-xs text-accent hover:text-blue-700">Progression →</a>
+    </div>
+    {% if historique_poids|length >= 2 %}
+      <canvas id="graphique-poids" height="120"></canvas>
+    {% else %}
+      <p class="text-sm text-slate-500">
+        Ajoute au moins deux pesées pour visualiser ta progression.
+      </p>
+    {% endif %}
+  </div>
+</div>
+
+{% if historique_poids|length >= 2 %}
+  {{ historique_poids|json_script:"donnees-poids" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>
+    (function () {
+      const points = JSON.parse(document.getElementById("donnees-poids").textContent);
+      const ctx = document.getElementById("graphique-poids");
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: points.map((p) => p.date),
+          datasets: [{
+            data: points.map((p) => p.poids),
+            borderColor: "#2563EB",
+            backgroundColor: "rgba(37, 99, 235, 0.1)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { callback: (v) => v + " kg" } },
+          },
+        },
+      });
+    })();
+  </script>
+{% endif %}
+{% endblock %}

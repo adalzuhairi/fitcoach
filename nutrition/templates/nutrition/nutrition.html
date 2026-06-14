@@ -56,12 +56,18 @@
     <p class="mb-3 text-xs text-slate-400">{{ plan.nombre_repas }} repas / jour</p>
     <div class="divide-y divide-slate-100">
       {% for meal in plan.meals.all %}
-      <div class="flex items-center justify-between py-3">
+      <div class="flex items-center justify-between gap-3 py-3">
         <span class="font-medium text-slate-700">{{ meal.nom }}</span>
-        <span class="text-right text-sm text-slate-500">
-          <span class="font-semibold text-slate-700">{{ meal.calories }} kcal</span><br>
-          <span class="text-xs">{{ meal.proteines_g }}P / {{ meal.glucides_g }}G / {{ meal.lipides_g }}L</span>
-        </span>
+        <div class="flex items-center gap-3">
+          <span class="text-right text-sm text-slate-500">
+            <span class="font-semibold text-slate-700">{{ meal.calories }} kcal</span><br>
+            <span class="text-xs">{{ meal.proteines_g }}P / {{ meal.glucides_g }}G / {{ meal.lipides_g }}L</span>
+          </span>
+          <a href="{% url 'nutrition:recettes_repas' meal.id %}"
+             class="shrink-0 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-100">
+            Recettes
+          </a>
+        </div>
       </div>
       {% endfor %}
     </div>

@@ -1,0 +1,24 @@
+{% extends "account/_auth_base.html" %}
+{% block title %}Connexion — FitCoach{% endblock %}
+{% block auth_subtitle %}Connecte-toi pour accéder à ton coaching.{% endblock %}
+
+{% block auth_content %}
+<form method="post" action="{% url 'account_login' %}" class="auth-form">
+  {% csrf_token %}
+  {{ form.as_p }}
+  {% if redirect_field_value %}
+    <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+  {% endif %}
+  <div class="mb-3 text-right">
+    <a href="{% url 'account_reset_password' %}" class="text-xs text-accent hover:text-blue-700">Mot de passe oublié ?</a>
+  </div>
+  <button type="submit" class="w-full rounded-xl bg-accent px-4 py-2 font-semibold text-white hover:bg-blue-700">
+    Se connecter
+  </button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+  Pas encore de compte ?
+  <a href="{% url 'account_signup' %}" class="font-medium text-accent hover:text-blue-700">Crée-en un</a>
+{% endblock %}

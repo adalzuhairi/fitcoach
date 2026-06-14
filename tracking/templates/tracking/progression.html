@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Progression — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-3xl px-4 py-10">
+
+  <a href="{% url 'tracking:dashboard' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Tableau de bord</a>
+  <h1 class="text-2xl font-bold text-slate-900">Progression</h1>
+  <p class="mt-1 text-sm text-slate-500">Tes charges par exercice et ton volume d'entraînement.</p>
+
+  {% if not exercices %}
+  <div class="mt-6 rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-100">
+    <p class="text-sm text-slate-500">
+      Aucune série enregistrée pour l'instant. Lance une séance depuis ton programme
+      pour commencer à suivre ta progression.
+    </p>
+    <a href="{% url 'training:programme' %}"
+       class="mt-4 inline-block rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+      Mon programme
+    </a>
+  </div>
+  {% else %}
+
+  <!-- Charge par exercice -->
+  <div class="mt-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <div class="mb-3 flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-slate-700">Charge max par séance</h2>
+      <form method="get" id="form-exercice">
+        <select name="exercice" onchange="document.getElementById('form-exercice').submit()"
+                class="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:border-accent focus:outline-none">
+          {% for ex in exercices %}
+          <option value="{{ ex.id }}" {% if ex == selection %}selected{% endif %}>{{ ex.nom }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% if charge|length >= 1 %}
+      <canvas id="chart-charge" height="120"></canvas>
+    {% else %}
+      <p class="text-sm text-slate-500">Pas encore de série loggée pour cet exercice.</p>
+    {% endif %}
+  </div>
+
+  <!-- Volume hebdomadaire -->
+  <div class="mt-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <h2 class="mb-3 text-sm font-semibold text-slate-700">Volume hebdomadaire <span class="font-normal text-slate-400">(reps × charge)</span></h2>
+    <canvas id="chart-volume" height="120"></canvas>
+  </div>
+
+  {{ charge|json_script:"donnees-charge" }}
+  {{ volume|json_script:"donnees-volume" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>
+    (function () {
+      const fmtDate = (iso) => {
+        const [, m, d] = iso.split("-");
+        return d + "/" + m;
+      };
+
+      const charge = JSON.parse(document.getElementById("donnees-charge").textContent);
+      if (charge.length >= 1) {
+        new Chart(document.getElementById("chart-charge"), {
+          type: "line",
+          data: {
+            labels: charge.map((p) => fmtDate(p.date)),
+            datasets: [{
+              data: charge.map((p) => p.charge),
+              borderColor: "#2563EB",
+              backgroundColor: "rgba(37, 99, 235, 0.1)",
+              fill: true,
+              tension: 0.3,
+              pointRadius: 3,
+            }],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { ticks: { callback: (v) => v + " kg" } } },
+          },
+        });
+      }
+
+      const volume = JSON.parse(document.getElementById("donnees-volume").textContent);
+      new Chart(document.getElementById("chart-volume"), {
+        type: "bar",
+        data: {
+          labels: volume.map((p) => fmtDate(p.semaine)),
+          datasets: [{
+            data: volume.map((p) => p.volume),
+            backgroundColor: "#2563EB",
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { callback: (v) => v + " kg" } } },
+        },
+      });
+    })();
+  </script>
+  {% endif %}
+</div>
+{% endblock %}

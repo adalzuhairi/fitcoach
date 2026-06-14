@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load training_extras %}
+{% block title %}Bibliothèque d'exercices — FitCoach{% endblock %}
+
+{% block body %}
+<div class="mx-auto max-w-4xl px-4 py-10">
+
+  <a href="{% url 'tracking:dashboard' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Tableau de bord</a>
+  <h1 class="text-2xl font-bold text-slate-900">Bibliothèque d'exercices</h1>
+  <p class="mt-1 text-sm text-slate-500">Recherche et filtre parmi tous les exercices.</p>
+
+  <!-- Recherche + filtres -->
+  <form method="get" id="form-filtres" class="mt-6 grid gap-3 sm:grid-cols-4">
+    <input type="search" name="q" value="{{ query }}" placeholder="Rechercher un exercice…"
+           class="sm:col-span-4 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none">
+
+    {% with sel="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-accent focus:outline-none" %}
+    <select name="groupe" onchange="document.getElementById('form-filtres').submit()" class="{{ sel }}">
+      <option value="">Tous les groupes</option>
+      {% for val, label in groupes %}<option value="{{ val }}" {% if val == groupe %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="materiel" onchange="document.getElementById('form-filtres').submit()" class="{{ sel }}">
+      <option value="">Tout matériel</option>
+      {% for val, label in materiels %}<option value="{{ val }}" {% if val == materiel %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="niveau" onchange="document.getElementById('form-filtres').submit()" class="{{ sel }}">
+      <option value="">Tous niveaux</option>
+      {% for val, label in niveaux %}<option value="{{ val }}" {% if val == niveau %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <button type="submit"
+            class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Filtrer</button>
+    {% endwith %}
+  </form>
+
+  <p class="mt-4 text-xs text-slate-400">{{ exercices|length }} exercice{{ exercices|length|pluralize }}</p>
+
+  <!-- Résultats -->
+  {% if exercices %}
+  <div class="mt-2 grid gap-3 sm:grid-cols-2">
+    {% for ex in exercices %}
+    <a href="{% url 'training:exercice' ex.id %}"
+       class="block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100 hover:ring-slate-200">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="font-semibold text-slate-800">{{ ex.nom }}</p>
+          {% if ex.nom_en %}<p class="text-xs text-slate-400">{{ ex.nom_en }}</p>{% endif %}
+        </div>
+        <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium {{ ex.groupe_musculaire|badge_groupe }}">
+          {{ ex.get_groupe_musculaire_display }}
+        </span>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
+        <span class="rounded-full bg-slate-50 px-2 py-0.5 ring-1 ring-slate-200">{{ ex.get_type_display }}</span>
+        <span class="rounded-full bg-slate-50 px-2 py-0.5 ring-1 ring-slate-200">{{ ex.get_materiel_requis_display }}</span>
+        <span class="rounded-full bg-slate-50 px-2 py-0.5 ring-1 ring-slate-200">{{ ex.get_niveau_minimum_display }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="mt-2 rounded-xl bg-white p-6 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-100">
+    Aucun exercice ne correspond à ta recherche.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}
