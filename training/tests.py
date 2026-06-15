@@ -3,6 +3,7 @@
 import datetime
 import json
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
@@ -249,3 +250,30 @@ class ExerciceDetailTests(TestCase):
 
     def test_introuvable(self):
         self.assertIsNone(services.exercice_detail(999999))
+
+
+class ValiderExercicesActionTests(TestCase):
+    """Action admin groupée « Valider les exercices sélectionnés »."""
+
+    def setUp(self):
+        from django.contrib.admin.sites import AdminSite
+
+        from .admin import ExerciseAdmin
+
+        self.admin = ExerciseAdmin(Exercise, AdminSite())
+        self.ia1 = Exercise.objects.create(
+            nom="Exo IA 1", groupe_musculaire=GroupeMusculaire.EPAULES,
+            type=TypeExercice.ISOLATION, a_valider=True,
+        )
+        self.ia2 = Exercise.objects.create(
+            nom="Exo IA 2", groupe_musculaire=GroupeMusculaire.DOS,
+            type=TypeExercice.COMPOSE, a_valider=True,
+        )
+
+    def test_action_passe_a_valider_a_false(self):
+        request = mock.Mock()
+        self.admin.valider_exercices(request, Exercise.objects.filter(a_valider=True))
+        self.ia1.refresh_from_db()
+        self.ia2.refresh_from_db()
+        self.assertFalse(self.ia1.a_valider)
+        self.assertFalse(self.ia2.a_valider)
