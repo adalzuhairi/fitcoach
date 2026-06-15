@@ -41,6 +41,23 @@
       background-image: radial-gradient(120% 80% at 50% -10%, #0E1424 0%, rgb(var(--bg)) 60%);
       background-attachment: fixed;
     }
+    /* Champs de formulaire sombres : appliqué via la classe .form-dark sur un
+       conteneur, pour styler les widgets rendus par Django sans toucher au Python. */
+    .form-dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    .form-dark select,
+    .form-dark textarea {
+      width: 100%; border-radius: 0.75rem;
+      border: 1px solid rgb(var(--border));
+      background-color: rgb(var(--surface-2));
+      color: rgb(var(--text)); padding: 0.55rem 0.75rem;
+    }
+    .form-dark input::placeholder, .form-dark textarea::placeholder { color: rgb(var(--muted)); }
+    .form-dark input:focus, .form-dark select:focus, .form-dark textarea:focus {
+      outline: none; border-color: rgb(var(--accent));
+      box-shadow: 0 0 0 3px rgb(var(--accent) / 0.25);
+    }
+    .form-dark input[type="file"] { color: rgb(var(--muted)); font-size: 0.875rem; }
+    .form-dark select option { background-color: rgb(var(--surface)); color: rgb(var(--text)); }
   </style>
 
   <script src="https://cdn.tailwindcss.com"></script>

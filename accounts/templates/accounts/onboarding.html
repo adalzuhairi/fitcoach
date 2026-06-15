@@ -6,28 +6,28 @@
   <div class="w-full max-w-xl" x-data="{ step: 1, total: 4 }">
 
     <div class="mb-6 text-center">
-      <h1 class="text-2xl font-bold text-slate-900">Bienvenue sur FitCoach</h1>
-      <p class="mt-1 text-sm text-slate-500">Quelques questions pour calibrer ton coaching.</p>
+      <h1 class="text-2xl font-bold text-text">Bienvenue sur FitCoach</h1>
+      <p class="mt-1 text-sm text-muted">Quelques questions pour calibrer ton coaching.</p>
     </div>
 
     <!-- Barre de progression -->
-    <div class="mb-6 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+    <div class="mb-6 h-2 w-full overflow-hidden rounded-full bg-surface-2">
       <div class="h-full rounded-full bg-accent transition-all duration-300"
            :style="`width: ${(step / total) * 100}%`"></div>
     </div>
 
-    <form method="post" class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+    <form method="post" class="form-dark card p-6">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
-        <div class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {{ form.non_field_errors }}
         </div>
       {% endif %}
 
       <!-- Étape 1 — Profil -->
       <div x-show="step === 1">
-        <h2 class="mb-4 text-lg font-semibold text-slate-800">1. Ton profil</h2>
+        <h2 class="mb-4 text-lg font-semibold text-text">1. Ton profil</h2>
         {% include "accounts/_field.html" with field=form.sexe %}
         {% include "accounts/_field.html" with field=form.date_naissance %}
         {% include "accounts/_field.html" with field=form.taille_cm %}
@@ -36,7 +36,7 @@
 
       <!-- Étape 2 — Objectif & activité -->
       <div x-show="step === 2" x-cloak>
-        <h2 class="mb-4 text-lg font-semibold text-slate-800">2. Objectif &amp; activité</h2>
+        <h2 class="mb-4 text-lg font-semibold text-text">2. Objectif &amp; activité</h2>
         {% include "accounts/_field.html" with field=form.objectif %}
         {% include "accounts/_field.html" with field=form.niveau %}
         {% include "accounts/_field.html" with field=form.activite %}
@@ -45,13 +45,13 @@
 
       <!-- Étape 3 — Matériel -->
       <div x-show="step === 3" x-cloak>
-        <h2 class="mb-4 text-lg font-semibold text-slate-800">3. Ton matériel</h2>
+        <h2 class="mb-4 text-lg font-semibold text-text">3. Ton matériel</h2>
         {% include "accounts/_field.html" with field=form.materiel %}
       </div>
 
       <!-- Étape 4 — Préférences & nutrition -->
       <div x-show="step === 4" x-cloak>
-        <h2 class="mb-4 text-lg font-semibold text-slate-800">4. Préférences &amp; nutrition</h2>
+        <h2 class="mb-4 text-lg font-semibold text-text">4. Préférences &amp; nutrition</h2>
         {% include "accounts/_field.html" with field=form.nombre_repas %}
         {% include "accounts/_field.html" with field=form.preferences_alimentaires %}
         {% include "accounts/_field.html" with field=form.allergies_alimentaires %}
@@ -61,23 +61,21 @@
       <!-- Navigation -->
       <div class="mt-6 flex items-center justify-between">
         <button type="button" x-show="step > 1" x-cloak @click="step--"
-                class="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
+                class="rounded-xl px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface-2 hover:text-text">
           ← Précédent
         </button>
         <span x-show="step === 1" x-cloak></span>
 
-        <button type="button" x-show="step < total" @click="step++"
-                class="ml-auto rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        <button type="button" x-show="step < total" @click="step++" class="btn-primary ml-auto px-5 py-2">
           Suivant →
         </button>
-        <button type="submit" x-show="step === total" x-cloak
-                class="ml-auto rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        <button type="submit" x-show="step === total" x-cloak class="btn-primary ml-auto px-5 py-2">
           Valider et générer mon plan
         </button>
       </div>
     </form>
 
-    <p class="mt-4 text-center text-xs text-slate-400">Étape <span x-text="step"></span> sur <span x-text="total"></span></p>
+    <p class="mt-4 text-center text-xs text-muted">Étape <span x-text="step"></span> sur <span x-text="total"></span></p>
   </div>
 </div>
 

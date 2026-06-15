@@ -1,12 +1,12 @@
 <div class="mb-4">
-  <label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-medium text-slate-700">
+  <label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-medium text-text">
     {{ field.label }}
   </label>
   {{ field }}
   {% if field.help_text %}
-    <p class="mt-1 text-xs text-slate-400">{{ field.help_text }}</p>
+    <p class="mt-1 text-xs text-muted">{{ field.help_text }}</p>
   {% endif %}
   {% for error in field.errors %}
-    <p class="mt-1 text-xs text-red-600">{{ error }}</p>
+    <p class="mt-1 text-xs text-red-400">{{ error }}</p>
   {% endfor %}
 </div>
