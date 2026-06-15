@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 {% load training_extras %}
 {% block title %}{{ exercice.nom }} — FitCoach{% endblock %}
 
-{% block body %}
-<div class="mx-auto max-w-2xl px-4 py-10">
+{% block content %}
+<div class="mx-auto max-w-2xl">
 
   <a href="{% url 'training:bibliotheque' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Bibliothèque</a>
 

@@ -1,10 +1,7 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 {% block title %}Progression — FitCoach{% endblock %}
 
-{% block body %}
-<div class="mx-auto max-w-3xl px-4 py-10">
-
-  <a href="{% url 'tracking:dashboard' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Tableau de bord</a>
+{% block content %}
   <h1 class="text-2xl font-bold text-slate-900">Progression</h1>
   <p class="mt-1 text-sm text-slate-500">Tes charges par exercice et ton volume d'entraînement.</p>
 
@@ -100,5 +97,4 @@
     })();
   </script>
   {% endif %}
-</div>
 {% endblock %}

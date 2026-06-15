@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% comment %}
+Enveloppe des pages connectées : sidebar sombre fixe (desktop) qui se replie en
+tiroir coulissant sous le breakpoint lg (burger). Les pages publiques/auth, le mode
+séance et l'onboarding étendent directement base.html et n'héritent donc pas du menu.
+Les pages applicatives remplissent {% block content %}.
+{% endcomment %}
+
+{% block body %}
+<div x-data="{ nav: false }" class="min-h-screen lg:flex">
+
+  <!-- Voile sombre derrière le tiroir (mobile uniquement) -->
+  <div x-show="nav" x-cloak x-transition.opacity @click="nav = false"
+       class="fixed inset-0 z-30 bg-slate-900/50 lg:hidden"></div>
+
+  <!-- Sidebar / tiroir -->
+  <aside x-cloak :class="nav ? 'translate-x-0' : '-translate-x-full'"
+         class="fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col bg-sidebar text-slate-300 transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0 lg:shrink-0">
+    <div class="flex h-16 items-center justify-between px-5">
+      <a href="{% url 'tracking:dashboard' %}" class="text-lg font-bold text-white">FitCoach</a>
+      <button @click="nav = false" class="text-slate-400 hover:text-white lg:hidden" aria-label="Fermer le menu">
+        <i data-lucide="x" class="h-5 w-5" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+      {% include "_nav_link.html" with url="tracking:dashboard" label="Tableau de bord" icon="layout-dashboard" %}
+      {% include "_nav_link.html" with url="training:programme" label="Mon programme" icon="dumbbell" %}
+      {% include "_nav_link.html" with url="nutrition:ma_nutrition" label="Ma nutrition" icon="utensils" match="nutrition:ma_nutrition nutrition:recettes_repas nutrition:generer_recettes" %}
+      {% include "_nav_link.html" with url="training:bibliotheque" label="Exercices" icon="book-open" match="training:bibliotheque training:exercice" %}
+      {% include "_nav_link.html" with url="tracking:progression" label="Progression" icon="trending-up" %}
+      {% include "_nav_link.html" with url="tracking:mesures" label="Mesures" icon="ruler" match="tracking:mesures tracking:modifier_mesure tracking:supprimer_mesure" %}
+      {% include "_nav_link.html" with url="accounts:profil" label="Mon profil" icon="user" %}
+    </nav>
+
+    <div class="border-t border-white/10 px-3 py-3">
+      {% if request.user.is_authenticated %}
+      <p class="px-3 pb-2 text-xs text-slate-500">{{ request.user.email|default:request.user }}</p>
+      {% endif %}
+      <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white">
+          <i data-lucide="log-out" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+          <span>Déconnexion</span>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- Zone de contenu -->
+  <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Barre supérieure mobile (burger) -->
+    <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:hidden">
+      <button @click="nav = true" class="-ml-1 rounded-lg p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label="Ouvrir le menu">
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <a href="{% url 'tracking:dashboard' %}" class="font-bold text-slate-900">FitCoach</a>
+    </header>
+
+    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 lg:px-8">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

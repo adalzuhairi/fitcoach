@@ -1,9 +1,7 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 {% block title %}Tableau de bord — FitCoach{% endblock %}
 
-{% block body %}
-<div class="mx-auto max-w-3xl px-4 py-10">
-
+{% block content %}
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="text-2xl font-bold text-slate-900">Bonjour {{ request.user.get_short_name|default:request.user.username }} 👋</h1>
@@ -86,7 +84,6 @@
       </p>
     {% endif %}
   </div>
-</div>
 
 {% if historique_poids|length >= 2 %}
   {{ historique_poids|json_script:"donnees-poids" }}

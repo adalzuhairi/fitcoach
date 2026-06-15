@@ -1,11 +1,7 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 {% block title %}Mon profil — FitCoach{% endblock %}
 
-{% block body %}
-<div class="mx-auto max-w-3xl px-4 py-10">
-
-  <a href="{% url 'tracking:dashboard' %}" class="mb-2 inline-block text-sm text-slate-400 hover:text-slate-600">← Tableau de bord</a>
-
+{% block content %}
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-2xl font-bold text-slate-900">Mon profil</h1>
     <div class="flex gap-2">
@@ -84,5 +80,4 @@
       <button type="submit" class="text-sm text-slate-400 hover:text-slate-600">Se déconnecter</button>
     </form>
   </div>
-</div>
 {% endblock %}
