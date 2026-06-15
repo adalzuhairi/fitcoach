@@ -1,0 +1,23 @@
+# Surcouche DEV — appliquée AUTOMATIQUEMENT par `docker compose up`.
+# Contient uniquement ce qui diffère de la base pour le développement local :
+#   - ports publiés sur l'hôte (app, db, redis accessibles depuis ta machine)
+#   - code monté en volume (auto-reload du runserver)
+#   - serveur de dev Django
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  web:
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
