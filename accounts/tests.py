@@ -6,11 +6,13 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from nutrition.models import Meal, NutritionPlan
 from tracking.models import BodyMeasurement
 from training.models import Program, Split, WorkoutDay
 
+from .forms import ProfileForm
 from .models import Objectif, Profile
 
 User = get_user_model()
@@ -89,6 +91,12 @@ class IsolationInterUtilisateursTests(TestCase):
         # Alice possède toutes les données ; Bob est l'intrus connecté.
         self.alice = User.objects.create_user(username="alice", password="x")
         self.bob = User.objects.create_user(username="bob", password="x")
+        # Bob est onboardé (profil créé) : on teste l'isolation des données,
+        # pas la redirection d'onboarding qui s'appliquerait sinon.
+        Profile.objects.create(
+            user=self.bob, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
 
         self.program = Program.objects.create(
             user=self.alice, nom="Prog Alice", objectif=Objectif.PRISE_DE_MASSE,
@@ -144,6 +152,68 @@ class IsolationInterUtilisateursTests(TestCase):
         self.assertNotIn(self.mesure, list(r.context["mesures"]))
 
 
+class OnboardingObligatoireTests(TestCase):
+    """Le middleware force le passage par l'onboarding tant qu'il n'y a pas de profil."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sansprofil", password="x")
+        self.client.force_login(self.user)
+
+    def test_page_de_contenu_redirige_vers_onboarding(self):
+        r = self.client.get(reverse("nutrition:ma_nutrition"))
+        self.assertRedirects(r, reverse("accounts:onboarding"))
+
+    def test_onboarding_reste_accessible(self):
+        r = self.client.get(reverse("accounts:onboarding"))
+        self.assertEqual(r.status_code, 200)
+
+    def test_acces_normal_une_fois_le_profil_cree(self):
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        r = self.client.get(reverse("tracking:mesures"))
+        self.assertEqual(r.status_code, 200)
+
+
+class ProfileFormValidationTests(TestCase):
+    """Le formulaire impose des infos cohérentes et un choix explicite."""
+
+    def setUp(self):
+        self.donnees = {
+            "sexe": "H", "date_naissance": "2000-06-20", "taille_cm": "180",
+            "poids_kg": "80", "objectif": "maintien", "niveau": "intermediaire",
+            "activite": "modere", "jours_entrainement_par_semaine": "4",
+            "materiel": "salle_complete", "nombre_repas": "4",
+            "preferences_alimentaires": "", "allergies_alimentaires": "",
+            "blessures_limitations": "",
+        }
+
+    def test_donnees_completes_valides(self):
+        self.assertTrue(ProfileForm(self.donnees).is_valid())
+
+    def test_objectif_obligatoire(self):
+        form = ProfileForm(dict(self.donnees, objectif=""))
+        self.assertFalse(form.is_valid())
+        self.assertIn("objectif", form.errors)
+
+    def test_niveau_obligatoire_sans_defaut_silencieux(self):
+        form = ProfileForm(dict(self.donnees, niveau=""))
+        self.assertFalse(form.is_valid())
+        self.assertIn("niveau", form.errors)
+
+    def test_date_naissance_future_refusee(self):
+        future = (timezone.localdate() + datetime.timedelta(days=1)).isoformat()
+        form = ProfileForm(dict(self.donnees, date_naissance=future))
+        self.assertFalse(form.is_valid())
+        self.assertIn("date_naissance", form.errors)
+
+    def test_age_implausible_refuse(self):
+        form = ProfileForm(dict(self.donnees, date_naissance="2020-01-01"))
+        self.assertFalse(form.is_valid())
+        self.assertIn("date_naissance", form.errors)
+
+
 class LandingTests(TestCase):
     """Racine publique : landing pour les visiteurs, dashboard si connecté."""
 
@@ -154,9 +224,14 @@ class LandingTests(TestCase):
 
     def test_utilisateur_connecte_redirige_vers_dashboard(self):
         user = User.objects.create_user(username="ahmed", password="x")
+        # Utilisateur onboardé : la landing l'amène bien jusqu'au dashboard.
+        Profile.objects.create(
+            user=user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
         self.client.force_login(user)
         r = self.client.get(reverse("landing"))
-        self.assertRedirects(r, reverse("tracking:dashboard"), target_status_code=302)
+        self.assertRedirects(r, reverse("tracking:dashboard"))
 
 
 class AccesAnonymeTests(TestCase):

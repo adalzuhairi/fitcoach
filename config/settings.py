@@ -82,6 +82,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # allauth : gère les requêtes liées au compte (doit suivre AuthenticationMiddleware).
     "allauth.account.middleware.AccountMiddleware",
+    # Onboarding obligatoire : renvoie vers le formulaire tant que le profil
+    # n'est pas créé (doit suivre l'authentification pour connaître l'utilisateur).
+    "accounts.middleware.OnboardingRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"

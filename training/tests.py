@@ -96,7 +96,14 @@ class SuggestionChargeTests(TestCase):
 
 class SeanceViewTests(TestCase):
     def setUp(self):
+        from accounts.models import Objectif, Profile
+
         self.user = User.objects.create_user("ahmed", password="x")
+        # Profil requis : le middleware d'onboarding garde sinon toutes les pages.
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
         self.client.force_login(self.user)
         self.program = Program.objects.create(
             user=self.user, nom="Prog", objectif="prise_de_masse",
@@ -168,7 +175,13 @@ class SeanceViewTests(TestCase):
         self.assertEqual(log.ressenti, 4)
 
     def test_seance_autre_user_interdite(self):
+        from accounts.models import Objectif, Profile
+
         autre = User.objects.create_user("autre", password="x")
+        Profile.objects.create(
+            user=autre, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
         self.client.force_login(autre)
         resp = self.client.get(reverse("training:seance", args=[self.day.id]))
         self.assertEqual(resp.status_code, 404)

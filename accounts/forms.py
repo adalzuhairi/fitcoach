@@ -1,6 +1,22 @@
 from django import forms
+from django.utils import timezone
 
 from .models import Profile
+
+# Champs de type « choix » dont on impose une sélection explicite : on retire
+# la valeur par défaut du modèle pour forcer l'utilisateur à répondre lui-même
+# (sinon on collecte un défaut silencieux qui fausse le programme proposé).
+PLACEHOLDERS_CHOIX = {
+    "sexe": "Sélectionne…",
+    "objectif": "Quel est ton objectif ?",
+    "niveau": "Ton niveau actuel",
+    "activite": "Ton niveau d'activité au quotidien",
+    "materiel": "Matériel dont tu disposes",
+}
+
+# Bornes de plausibilité pour la date de naissance (en années).
+AGE_MIN = 13
+AGE_MAX = 100
 
 # Classes Tailwind communes aux champs du formulaire.
 INPUT_CLASS = (
@@ -61,6 +77,32 @@ class ProfileForm(forms.ModelForm):
                 attrs={"class": TEXTAREA_CLASS, "rows": 2, "placeholder": "ex: épaule droite fragile"}
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Impose un choix explicite : option vide en tête, aucun pré-sélectionné.
+        for nom, placeholder in PLACEHOLDERS_CHOIX.items():
+            champ = self.fields[nom]
+            champ.required = True
+            champ.choices = [("", placeholder)] + [
+                choix for choix in champ.choices if choix[0] != ""
+            ]
+            # On n'impose un défaut vide que pour un nouveau profil ; en édition,
+            # la valeur de l'instance reste pré-remplie.
+            if not (self.instance and self.instance.pk):
+                self.initial.setdefault(nom, "")
+
+    def clean_date_naissance(self):
+        date_naissance = self.cleaned_data["date_naissance"]
+        aujourdhui = timezone.localdate()
+        if date_naissance > aujourdhui:
+            raise forms.ValidationError("La date de naissance ne peut pas être dans le futur.")
+        age = (aujourdhui - date_naissance).days // 365
+        if not AGE_MIN <= age <= AGE_MAX:
+            raise forms.ValidationError(
+                f"L'âge doit être compris entre {AGE_MIN} et {AGE_MAX} ans."
+            )
+        return date_naissance
 
     def clean_jours_entrainement_par_semaine(self):
         valeur = self.cleaned_data["jours_entrainement_par_semaine"]
