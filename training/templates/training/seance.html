@@ -7,23 +7,23 @@
 <div x-data="seanceApp()" x-cloak class="mx-auto max-w-xl px-4 pb-40 pt-6">
 
   <div class="mb-1 flex items-center justify-between">
-    <a href="{% url 'training:programme' %}" class="text-sm text-slate-400 hover:text-slate-600">← Programme</a>
+    <a href="{% url 'training:programme' %}" class="text-sm text-muted transition hover:text-text">← Programme</a>
   </div>
-  <h1 class="text-xl font-bold text-slate-900">{{ workout_day.nom }}</h1>
-  <p class="mt-1 text-sm text-slate-500" x-text="`${setsFaits()} séries enregistrées`"></p>
+  <h1 class="text-xl font-bold text-text">{{ workout_day.nom }}</h1>
+  <p class="mt-1 text-sm text-muted" x-text="`${setsFaits()} séries enregistrées`"></p>
 
   <!-- Exercices -->
   <div class="mt-5 space-y-4">
     <template x-for="ex in exercices" :key="ex.weId">
-      <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+      <div class="card p-4">
         <div class="mb-1 flex items-baseline justify-between gap-2">
-          <h2 class="font-semibold text-slate-800" x-text="ex.nom"></h2>
-          <span class="shrink-0 text-sm text-slate-500" x-text="ex.cible"></span>
+          <h2 class="font-semibold text-text" x-text="ex.nom"></h2>
+          <span class="shrink-0 text-sm text-muted" x-text="ex.cible"></span>
         </div>
-        <p class="mb-3 text-xs text-slate-400">
+        <p class="mb-3 text-xs text-muted">
           repos <span x-text="ex.repos"></span> s
           <template x-if="ex.suggestion !== null">
-            <span> · charge suggérée <span class="font-medium text-accent" x-text="ex.suggestion + ' kg'"></span></span>
+            <span> · charge suggérée <span class="font-medium text-perf" x-text="ex.suggestion + ' kg'"></span></span>
           </template>
           <template x-if="ex.notes"><span> · <span x-text="ex.notes"></span></span></template>
         </p>
@@ -32,21 +32,21 @@
         <div class="space-y-2">
           <template x-for="serie in ex.series" :key="serie.numero">
             <div class="flex items-center gap-2 rounded-lg px-2 py-1.5"
-                 :class="serie.fait ? 'bg-emerald-50' : 'bg-slate-50'">
-              <span class="w-6 shrink-0 text-center text-sm font-semibold text-slate-400" x-text="serie.numero"></span>
+                 :class="serie.fait ? 'bg-emerald-500/10 ring-1 ring-emerald-500/20' : 'bg-surface-2'">
+              <span class="w-6 shrink-0 text-center text-sm font-semibold text-muted" x-text="serie.numero"></span>
 
               <div class="flex flex-1 items-center gap-2">
                 <input type="number" inputmode="numeric" min="0" placeholder="reps"
                        x-model="serie.reps"
-                       class="w-full rounded-lg border border-slate-300 px-2 py-2 text-center focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
+                       class="w-full rounded-lg border border-border bg-bg px-2 py-2 text-center text-text placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
                 <input type="number" inputmode="decimal" step="0.5" min="0" placeholder="kg"
                        x-model="serie.charge"
-                       class="w-full rounded-lg border border-slate-300 px-2 py-2 text-center focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
+                       class="w-full rounded-lg border border-border bg-bg px-2 py-2 text-center text-text placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
               </div>
 
               <button @click="enregistrer(ex, serie)"
-                      class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-white"
-                      :class="serie.fait ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-accent hover:bg-blue-700'"
+                      class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-white transition"
+                      :class="serie.fait ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-accent hover:brightness-110'"
                       x-text="serie.fait ? '✓' : 'OK'"></button>
             </div>
           </template>
@@ -57,35 +57,35 @@
 
   <!-- Terminer la séance -->
   <form method="post" action="{% url 'training:terminer_seance' log.id %}"
-        class="mt-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+        class="card mt-6 p-4">
     {% csrf_token %}
-    <h2 class="mb-3 font-semibold text-slate-800">Terminer la séance</h2>
+    <h2 class="mb-3 font-semibold text-text">Terminer la séance</h2>
     <div class="grid grid-cols-2 gap-3">
-      <label class="text-sm text-slate-600">Durée (min)
+      <label class="text-sm text-muted">Durée (min)
         <input type="number" name="duree_minutes" min="0"
-               class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-accent focus:outline-none">
+               class="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-text focus:border-accent focus:outline-none">
       </label>
-      <label class="text-sm text-slate-600">Ressenti (1-5)
+      <label class="text-sm text-muted">Ressenti (1-5)
         <input type="number" name="ressenti" min="1" max="5"
-               class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-accent focus:outline-none">
+               class="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-text focus:border-accent focus:outline-none">
       </label>
     </div>
     <textarea name="notes" rows="2" placeholder="Notes (optionnel)"
-              class="mt-3 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-accent focus:outline-none"></textarea>
-    <button type="submit" class="mt-3 w-full rounded-xl bg-slate-800 px-4 py-2.5 font-semibold text-white hover:bg-slate-900">
+              class="mt-3 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none"></textarea>
+    <button type="submit" class="btn-primary mt-3 w-full">
       Enregistrer la séance
     </button>
   </form>
 
   <!-- Barre chrono de repos (collée en bas) -->
   <div x-show="restRunning" x-cloak
-       class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+       class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur">
     <div class="mx-auto flex max-w-xl items-center gap-3">
-      <span class="text-sm text-slate-500">Repos</span>
-      <span class="text-2xl font-bold tabular-nums text-accent" x-text="restLabel()"></span>
+      <span class="text-sm text-muted">Repos</span>
+      <span class="text-2xl font-bold tabular-nums text-perf" x-text="restLabel()"></span>
       <div class="ml-auto flex gap-2">
-        <button @click="addRest(15)" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">+15 s</button>
-        <button @click="stopRest()" class="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">Passer</button>
+        <button @click="addRest(15)" class="rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-text hover:bg-surface-2">+15 s</button>
+        <button @click="stopRest()" class="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:brightness-110">Passer</button>
       </div>
     </div>
   </div>
