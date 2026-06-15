@@ -50,10 +50,17 @@ services:
       - "traefik.enable=true"
       # Réseau que Traefik doit utiliser pour router (obligatoire en multi-réseaux).
       - "traefik.docker.network=frontend"
+      # Pattern standard VM (it-tools/dockhand) : DEUX routeurs.
+      #   - routeur HTTP "fitcoach" sur l'entrypoint "web" : la redirection
+      #     globale vers HTTPS est déjà gérée dans traefik.yml.
+      #   - routeur HTTPS "fitcoach-https" sur "websecure" (4443) : le vrai,
+      #     avec TLS et certificat Let's Encrypt via DNS challenge Infomaniak.
       - "traefik.http.routers.fitcoach.rule=Host(`fitcoach.infotechno.eu`)"
-      - "traefik.http.routers.fitcoach.entrypoints=websecure"
-      - "traefik.http.routers.fitcoach.tls=true"
-      - "traefik.http.routers.fitcoach.tls.certresolver=infomaniak"
+      - "traefik.http.routers.fitcoach.entrypoints=web"
+      - "traefik.http.routers.fitcoach-https.rule=Host(`fitcoach.infotechno.eu`)"
+      - "traefik.http.routers.fitcoach-https.entrypoints=websecure"
+      - "traefik.http.routers.fitcoach-https.tls=true"
+      - "traefik.http.routers.fitcoach-https.tls.certresolver=infomaniak"
       - "traefik.http.services.fitcoach.loadbalancer.server.port=8000"
 
 volumes:
