@@ -43,6 +43,18 @@ class OnboardingViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "accounts/onboarding.html")
 
+    def test_explications_par_champ_affichees(self):
+        """Les help_text guident l'utilisateur sur les champs à impact."""
+        response = self.client.get(reverse("accounts:onboarding"))
+        self.assertContains(response, "Détermine tes calories cibles")
+        self.assertContains(response, "Estime les calories que tu brûles")
+        self.assertContains(response, "Répartit tes macros sur la journée")
+
+    def test_etape_recap_presente(self):
+        """L'étape de relecture des choix précède la validation."""
+        response = self.client.get(reverse("accounts:onboarding"))
+        self.assertContains(response, "Récapitulatif")
+
     def test_post_cree_profil_et_plan(self):
         response = self.client.post(reverse("accounts:onboarding"), self.donnees)
         self.assertRedirects(response, reverse("accounts:profil"))

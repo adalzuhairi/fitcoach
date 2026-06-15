@@ -18,12 +18,10 @@ PLACEHOLDERS_CHOIX = {
 AGE_MIN = 13
 AGE_MAX = 100
 
-# Classes Tailwind communes aux champs du formulaire.
-INPUT_CLASS = (
-    "w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 "
-    "focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none"
-)
-TEXTAREA_CLASS = INPUT_CLASS + " min-h-[80px]"
+# Le style des champs (fond sombre, focus, etc.) est entièrement géré par la
+# classe CSS .form-dark posée sur le conteneur du formulaire (cf. base.html) :
+# on ne met donc PAS de classes Tailwind sur les widgets, seulement les
+# attributs fonctionnels (bornes, type, placeholder).
 
 
 class ProfileForm(forms.ModelForm):
@@ -31,10 +29,10 @@ class ProfileForm(forms.ModelForm):
 
     nombre_repas = forms.TypedChoiceField(
         label="Nombre de repas par jour",
+        help_text="Répartit tes macros sur la journée.",
         coerce=int,
         choices=[(n, str(n)) for n in range(3, 7)],
         initial=4,
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
 
     class Meta:
@@ -53,28 +51,28 @@ class ProfileForm(forms.ModelForm):
             "allergies_alimentaires",
             "blessures_limitations",
         ]
+        # Explications courtes (sans jargon) sur les champs qui pilotent le
+        # calcul des calories/macros et la génération du programme.
+        help_texts = {
+            "objectif": "Détermine tes calories cibles (surplus, déficit ou maintien).",
+            "activite": "Estime les calories que tu brûles au quotidien, en dehors du sport.",
+            "niveau": "Adapte le volume et le choix des exercices.",
+            "jours_entrainement_par_semaine": "Définit comment tes séances sont réparties dans la semaine.",
+            "materiel": "Filtre les exercices proposés.",
+        }
         widgets = {
-            "sexe": forms.Select(attrs={"class": INPUT_CLASS}),
-            "date_naissance": forms.DateInput(
-                attrs={"class": INPUT_CLASS, "type": "date"}, format="%Y-%m-%d"
-            ),
-            "taille_cm": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 120, "max": 230}),
-            "poids_kg": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.1", "min": 30}),
-            "objectif": forms.Select(attrs={"class": INPUT_CLASS}),
-            "niveau": forms.Select(attrs={"class": INPUT_CLASS}),
-            "activite": forms.Select(attrs={"class": INPUT_CLASS}),
-            "jours_entrainement_par_semaine": forms.NumberInput(
-                attrs={"class": INPUT_CLASS, "min": 2, "max": 6}
-            ),
-            "materiel": forms.Select(attrs={"class": INPUT_CLASS}),
+            "date_naissance": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "taille_cm": forms.NumberInput(attrs={"min": 120, "max": 230}),
+            "poids_kg": forms.NumberInput(attrs={"step": "0.1", "min": 30}),
+            "jours_entrainement_par_semaine": forms.NumberInput(attrs={"min": 2, "max": 6}),
             "preferences_alimentaires": forms.Textarea(
-                attrs={"class": TEXTAREA_CLASS, "rows": 2, "placeholder": "ex: halal, sans porc"}
+                attrs={"rows": 2, "placeholder": "ex: halal, sans porc"}
             ),
             "allergies_alimentaires": forms.Textarea(
-                attrs={"class": TEXTAREA_CLASS, "rows": 2, "placeholder": "ex: arachides, lactose"}
+                attrs={"rows": 2, "placeholder": "ex: arachides, lactose"}
             ),
             "blessures_limitations": forms.Textarea(
-                attrs={"class": TEXTAREA_CLASS, "rows": 2, "placeholder": "ex: épaule droite fragile"}
+                attrs={"rows": 2, "placeholder": "ex: épaule droite fragile"}
             ),
         }
 

@@ -6,12 +6,31 @@
   <div class="w-full max-w-xl"
        x-data="{
          step: 1,
-         total: 4,
+         total: 5,
+         recap: {},
          next() {
            const current = this.$refs['step' + this.step];
            const invalid = current.querySelector(':invalid');
            if (invalid) { invalid.reportValidity(); return; }
            this.step++;
+           if (this.step === this.total) this.buildRecap();
+         },
+         buildRecap() {
+           const lire = (id) => {
+             const el = document.getElementById(id);
+             if (!el) return '—';
+             return el.tagName === 'SELECT'
+               ? (el.options[el.selectedIndex]?.text || '—')
+               : (el.value || '—');
+           };
+           this.recap = {
+             objectif: lire('id_objectif'),
+             niveau: lire('id_niveau'),
+             activite: lire('id_activite'),
+             jours: lire('id_jours_entrainement_par_semaine'),
+             materiel: lire('id_materiel'),
+             repas: lire('id_nombre_repas'),
+           };
          }
        }"
        x-init="
@@ -75,6 +94,34 @@
         {% include "accounts/_field.html" with field=form.preferences_alimentaires %}
         {% include "accounts/_field.html" with field=form.allergies_alimentaires %}
         {% include "accounts/_field.html" with field=form.blessures_limitations %}
+      </div>
+
+      <!-- Étape 5 — Récapitulatif (relecture des choix avant génération) -->
+      <div x-show="step === 5" x-cloak data-step="5" x-ref="step5">
+        <h2 class="mb-1 text-lg font-semibold text-text">5. Récapitulatif</h2>
+        <p class="mb-4 text-sm text-muted">
+          Vérifie tes réponses. Tes calories et macros seront calculées juste après, à partir de ton profil.
+        </p>
+        <dl class="divide-y divide-border text-sm">
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-muted">Objectif</dt><dd class="font-medium text-text" x-text="recap.objectif"></dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-muted">Niveau</dt><dd class="font-medium text-text" x-text="recap.niveau"></dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-muted">Activité quotidienne</dt><dd class="font-medium text-text" x-text="recap.activite"></dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-muted">Séances / semaine</dt><dd class="font-medium text-text" x-text="recap.jours"></dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-muted">Matériel</dt><dd class="font-medium text-text" x-text="recap.materiel"></dd>
+          </div>
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <dt class="text-muted">Repas / jour</dt><dd class="font-medium text-text" x-text="recap.repas"></dd>
+          </div>
+        </dl>
       </div>
 
       <!-- Navigation -->
