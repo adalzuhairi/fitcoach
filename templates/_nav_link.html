@@ -12,7 +12,7 @@ Le @click ferme le tiroir mobile (sans effet sur desktop où il est toujours ouv
 {% with cibles=match|default:url %}
 <a href="{% url url %}" @click="nav = false"
    class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors
-   {% if request.resolver_match.view_name|est_actif:cibles %}bg-accent text-white shadow-sm{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %}">
+   {% if request.resolver_match.view_name|est_actif:cibles %}bg-accent text-white shadow-glow-accent{% else %}text-muted hover:bg-white/5 hover:text-text{% endif %}">
   {% if icon %}<i data-lucide="{{ icon }}" class="h-5 w-5 shrink-0" aria-hidden="true"></i>{% endif %}
   <span>{{ label }}</span>
 </a>
