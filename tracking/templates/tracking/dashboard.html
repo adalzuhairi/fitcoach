@@ -12,6 +12,38 @@
     </a>
   </div>
 
+  <!-- Checklist de démarrage : guide les premiers pas, disparaît une fois tout fait -->
+  {% if not demarrage.tout_termine %}
+  <div class="card mb-4 p-5">
+    <div class="mb-1 flex items-center gap-2">
+      <i data-lucide="rocket" class="h-4 w-4 text-perf" aria-hidden="true"></i>
+      <h2 class="text-sm font-semibold text-text">Premiers pas</h2>
+    </div>
+    <p class="mb-4 text-sm text-muted">
+      Lance ton coaching : ton programme t'attend, démarre ta première séance, suis ta nutrition et garde un œil sur ta progression.
+    </p>
+    <ul class="space-y-2">
+      {% for etape in demarrage.etapes %}
+      <li>
+        <a href="{% url etape.url_name %}"
+           class="flex items-center gap-3 rounded-xl border border-border bg-surface-2 px-3 py-2.5 transition hover:border-white/15">
+          {% if etape.done %}
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-perf/15 text-perf">
+              <i data-lucide="check" class="h-3.5 w-3.5" aria-hidden="true"></i>
+            </span>
+            <span class="text-sm text-muted line-through">{{ etape.label }}</span>
+          {% else %}
+            <span class="h-5 w-5 shrink-0 rounded-full border border-border" aria-hidden="true"></span>
+            <span class="text-sm font-medium text-text">{{ etape.label }}</span>
+            <i data-lucide="arrow-right" class="ml-auto h-4 w-4 text-muted" aria-hidden="true"></i>
+          {% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   <!-- Prochaine séance : carte mise en avant + CTA d'action (lime) -->
   <div class="card relative mb-4 overflow-hidden bg-gradient-to-br from-surface-2 to-surface p-6 shadow-glow">
     <div aria-hidden="true" class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl"></div>

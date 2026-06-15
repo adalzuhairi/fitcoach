@@ -36,6 +36,7 @@ def dashboard(request):
             "profile": profile,
             "program": program,
             "plan": plan,
+            "demarrage": services.etapes_demarrage(request.user),
             "prochaine_seance": prochaine,
             "poids_actuel": services.poids_actuel(request.user, profile),
             "historique_poids": historique,

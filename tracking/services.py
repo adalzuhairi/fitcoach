@@ -23,6 +23,42 @@ import datetime
 CHAMPS_TOURS = ("tour_taille", "tour_bras", "tour_poitrine", "tour_cuisses")
 
 
+def etapes_demarrage(user):
+    """Checklist de démarrage du dashboard, reflétant l'état réel du compte.
+
+    Chaque étape s'appuie sur un signal concret en base (profil créé, première
+    séance loggée, première pesée enregistrée) : aucune heuristique, la
+    checklist est donc honnête. `tout_termine` permet de masquer la carte une
+    fois les premiers pas accomplis. L'item profil est coché d'emblée sur le
+    dashboard (le middleware garantit qu'un profil existe) : c'est volontaire,
+    il sert de point de départ acquis.
+    """
+    from accounts.models import Profile
+    from tracking.models import BodyMeasurement, WorkoutLog
+
+    etapes = [
+        {
+            "cle": "profil",
+            "label": "Profil complété",
+            "done": Profile.objects.filter(user=user).exists(),
+            "url_name": "accounts:profil",
+        },
+        {
+            "cle": "seance",
+            "label": "Lance ta première séance",
+            "done": WorkoutLog.objects.filter(user=user).exists(),
+            "url_name": "training:programme",
+        },
+        {
+            "cle": "pesee",
+            "label": "Enregistre ta première pesée",
+            "done": BodyMeasurement.objects.filter(user=user).exists(),
+            "url_name": "tracking:mesures",
+        },
+    ]
+    return {"etapes": etapes, "tout_termine": all(e["done"] for e in etapes)}
+
+
 def prochaine_seance(user, program):
     """Prochaine journée d'entraînement à réaliser dans le programme actif.
 

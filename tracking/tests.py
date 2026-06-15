@@ -6,7 +6,8 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from accounts.models import Objectif
+from accounts.models import Objectif, Profile
+from django.urls import reverse
 from training.models import (
     Exercise,
     GroupeMusculaire,
@@ -305,3 +306,80 @@ class VolumeHebdomadaireTests(ProgressionTestBase):
         self._set(vieux, self.we_dev, 1, 10, 100)
         serie = services.volume_hebdomadaire(self.user, n_semaines=4, aujourdhui=aujourdhui)
         self.assertTrue(all(point["volume"] == 0 for point in serie))
+
+
+class EtapesDemarrageTests(TrackingTestBase):
+    """La checklist de démarrage reflète l'état réel du compte."""
+
+    def _etat(self):
+        return {e["cle"]: e["done"] for e in services.etapes_demarrage(self.user)["etapes"]}
+
+    def test_sans_rien_seance_et_pesee_non_faites(self):
+        etat = self._etat()
+        self.assertFalse(etat["profil"])  # pas de Profile créé dans la base de test
+        self.assertFalse(etat["seance"])
+        self.assertFalse(etat["pesee"])
+
+    def test_profil_coche_si_profil_existe(self):
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        self.assertTrue(self._etat()["profil"])
+
+    def test_seance_cochee_apres_un_workout_log(self):
+        WorkoutLog.objects.create(
+            user=self.user, workout_day=self.j1, date=datetime.date(2026, 6, 14)
+        )
+        self.assertTrue(self._etat()["seance"])
+
+    def test_pesee_cochee_apres_une_mesure(self):
+        BodyMeasurement.objects.create(
+            user=self.user, date=datetime.date(2026, 6, 14), poids_kg=Decimal("80")
+        )
+        self.assertTrue(self._etat()["pesee"])
+
+    def test_tout_termine_seulement_quand_les_trois_sont_faits(self):
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        WorkoutLog.objects.create(
+            user=self.user, workout_day=self.j1, date=datetime.date(2026, 6, 14)
+        )
+        self.assertFalse(services.etapes_demarrage(self.user)["tout_termine"])  # pas de pesée
+        BodyMeasurement.objects.create(
+            user=self.user, date=datetime.date(2026, 6, 14), poids_kg=Decimal("80")
+        )
+        self.assertTrue(services.etapes_demarrage(self.user)["tout_termine"])
+
+
+class DashboardChecklistTests(TestCase):
+    """La carte « Premiers pas » apparaît tant que les étapes ne sont pas finies."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ahmed", password="motdepasse123")
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        self.client.force_login(self.user)
+
+    def test_checklist_visible_quand_incomplete(self):
+        response = self.client.get(reverse("tracking:dashboard"))
+        self.assertContains(response, "Premiers pas")
+
+    def test_checklist_masquee_quand_tout_coche(self):
+        day = WorkoutDay.objects.create(
+            program=Program.objects.create(
+                user=self.user, nom="P", objectif=Objectif.MAINTIEN,
+                date_debut=datetime.date(2026, 6, 1), split=Split.FULL_BODY, actif=True,
+            ),
+            jour_numero=1, nom="J1",
+        )
+        WorkoutLog.objects.create(user=self.user, workout_day=day, date=datetime.date(2026, 6, 14))
+        BodyMeasurement.objects.create(
+            user=self.user, date=datetime.date(2026, 6, 14), poids_kg=Decimal("80")
+        )
+        response = self.client.get(reverse("tracking:dashboard"))
+        self.assertNotContains(response, "Premiers pas")
