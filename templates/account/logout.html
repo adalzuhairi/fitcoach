@@ -3,18 +3,18 @@
 {% block auth_subtitle %}À bientôt 👋{% endblock %}
 
 {% block auth_content %}
-<p class="mb-4 text-sm text-slate-600">Veux-tu vraiment te déconnecter ?</p>
+<p class="mb-4 text-sm text-muted">Veux-tu vraiment te déconnecter ?</p>
 <form method="post" action="{% url 'account_logout' %}">
   {% csrf_token %}
   {% if redirect_field_value %}
     <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
   {% endif %}
-  <button type="submit" class="w-full rounded-xl bg-accent px-4 py-2 font-semibold text-white hover:bg-blue-700">
+  <button type="submit" class="btn-primary w-full">
     Se déconnecter
   </button>
 </form>
 {% endblock %}
 
 {% block auth_footer %}
-  <a href="{% url 'tracking:dashboard' %}" class="font-medium text-accent hover:text-blue-700">Annuler</a>
+  <a href="{% url 'tracking:dashboard' %}" class="link-accent font-medium">Annuler</a>
 {% endblock %}

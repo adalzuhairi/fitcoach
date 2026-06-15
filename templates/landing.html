@@ -2,70 +2,103 @@
 {% block title %}FitCoach — Ton coach sportif intelligent{% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-gradient-to-b from-white to-slate-50">
+<div class="relative min-h-screen overflow-hidden">
+
+  <!-- Halos d'ambiance en arrière-plan -->
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10">
+    <div class="absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-accent/20 blur-3xl"></div>
+    <div class="absolute top-40 right-0 h-72 w-72 rounded-full bg-perf/10 blur-3xl"></div>
+  </div>
 
   <!-- Barre de navigation -->
-  <header class="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
-    <span class="text-xl font-bold text-slate-900">FitCoach</span>
+  <header class="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
+    <span class="flex items-center gap-2 text-xl font-extrabold tracking-tight text-text">
+      <i data-lucide="dumbbell" class="h-6 w-6 text-perf" aria-hidden="true"></i>
+      FitCoach
+    </span>
     <nav class="flex items-center gap-2">
       <a href="{% url 'account_login' %}"
-         class="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+         class="rounded-xl px-4 py-2 text-sm font-medium text-muted transition hover:text-text">
         Se connecter
       </a>
-      <a href="{% url 'account_signup' %}"
-         class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+      <a href="{% url 'account_signup' %}" class="btn-primary px-4 py-2">
         Créer un compte
       </a>
     </nav>
   </header>
 
   <!-- Hero -->
-  <section class="mx-auto max-w-3xl px-4 py-16 text-center sm:py-24">
-    <span class="inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-accent">
+  <section class="mx-auto max-w-3xl px-4 py-20 text-center sm:py-28">
+    <span class="badge">
+      <i data-lucide="sparkles" class="h-3.5 w-3.5 text-perf" aria-hidden="true"></i>
       Coaching sportif intelligent
     </span>
-    <h1 class="mt-5 text-4xl font-bold leading-tight text-slate-900 sm:text-5xl">
-      Ton coach de musculation,<br>personnalisé par l'IA
+    <h1 class="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-text sm:text-6xl">
+      Ton coach de musculation,<br>
+      <span class="bg-gradient-to-r from-accent via-accent-2 to-perf bg-clip-text text-transparent">
+        personnalisé par l'IA
+      </span>
     </h1>
-    <p class="mx-auto mt-5 max-w-xl text-lg text-slate-500">
+    <p class="mx-auto mt-6 max-w-xl text-lg text-muted">
       Programmes d'entraînement sur mesure, plans nutritionnels adaptés à tes objectifs
       et suivi de progression — le tout au creux de ta main, à la salle comme à la maison.
     </p>
-    <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-      <a href="{% url 'account_signup' %}"
-         class="w-full rounded-xl bg-accent px-6 py-3 font-semibold text-white hover:bg-blue-700 sm:w-auto">
+    <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <a href="{% url 'account_signup' %}" class="btn-primary w-full px-7 py-3.5 text-base sm:w-auto">
         Commencer gratuitement
+        <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
       </a>
-      <a href="{% url 'account_login' %}"
-         class="w-full rounded-xl bg-white px-6 py-3 font-medium text-accent ring-1 ring-slate-200 hover:bg-slate-50 sm:w-auto">
+      <a href="{% url 'account_login' %}" class="btn-ghost w-full px-7 py-3.5 text-base sm:w-auto">
         J'ai déjà un compte
       </a>
+    </div>
+
+    <!-- Bandeau de chiffres clés -->
+    <div class="mx-auto mt-16 grid max-w-lg grid-cols-3 gap-4">
+      <div>
+        <p class="stat-value text-perf">60+</p>
+        <p class="stat-label mt-1">Exercices</p>
+      </div>
+      <div>
+        <p class="stat-value text-perf">IA</p>
+        <p class="stat-label mt-1">Programmes générés</p>
+      </div>
+      <div>
+        <p class="stat-value text-perf">100%</p>
+        <p class="stat-label mt-1">Sur mesure</p>
+      </div>
     </div>
   </section>
 
   <!-- Fonctionnalités -->
-  <section class="mx-auto max-w-5xl px-4 pb-20">
+  <section class="mx-auto max-w-6xl px-4 pb-24">
     <div class="grid gap-5 sm:grid-cols-3">
-      <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl">🏋️</div>
-        <h3 class="mt-4 font-semibold text-slate-800">Entraînement personnalisé</h3>
-        <p class="mt-2 text-sm text-slate-500">
+      <div class="card card-hover p-6">
+        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 text-accent ring-1 ring-accent/20">
+          <i data-lucide="dumbbell" class="h-6 w-6" aria-hidden="true"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-semibold text-text">Entraînement personnalisé</h3>
+        <p class="mt-2 text-sm text-muted">
           Un programme généré selon ton niveau, ton matériel et tes objectifs : exercices,
           séries, répétitions et temps de repos. Mode séance optimisé pour la salle.
         </p>
       </div>
-      <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl">🥗</div>
-        <h3 class="mt-4 font-semibold text-slate-800">Nutrition adaptée</h3>
-        <p class="mt-2 text-sm text-slate-500">
+      <div class="card card-hover p-6">
+        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 text-accent ring-1 ring-accent/20">
+          <i data-lucide="utensils" class="h-6 w-6" aria-hidden="true"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-semibold text-text">Nutrition adaptée</h3>
+        <p class="mt-2 text-sm text-muted">
           Calcul de tes calories et macros, répartition par repas et recettes générées
           selon tes préférences et allergies.
         </p>
       </div>
-      <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl">📈</div>
-        <h3 class="mt-4 font-semibold text-slate-800">Suivi de progression</h3>
-        <p class="mt-2 text-sm text-slate-500">
+      <div class="card card-hover p-6">
+        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 text-accent ring-1 ring-accent/20">
+          <i data-lucide="trending-up" class="h-6 w-6" aria-hidden="true"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-semibold text-text">Suivi de progression</h3>
+        <p class="mt-2 text-sm text-muted">
           Charges par exercice, volume hebdomadaire, poids et mensurations : visualise
           tes progrès et applique la progression automatique.
         </p>
@@ -74,7 +107,7 @@
   </section>
 
   <!-- Pied de page -->
-  <footer class="border-t border-slate-100 py-8 text-center text-sm text-slate-400">
+  <footer class="border-t border-border py-8 text-center text-sm text-muted">
     FitCoach — entraîne-toi plus intelligemment.
   </footer>
 </div>

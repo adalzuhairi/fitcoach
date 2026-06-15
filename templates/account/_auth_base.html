@@ -1,31 +1,49 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="flex min-h-screen items-center justify-center px-4 py-10">
+<div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+
+  <!-- Halo d'ambiance, cohérent avec la landing -->
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10">
+    <div class="absolute -top-24 left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-accent/20 blur-3xl"></div>
+  </div>
+
   <div class="w-full max-w-sm">
     <div class="mb-6 text-center">
-      <h1 class="text-2xl font-bold text-slate-900">FitCoach</h1>
-      <p class="mt-1 text-sm text-slate-500">{% block auth_subtitle %}{% endblock %}</p>
+      <a href="{% url 'landing' %}" class="inline-flex items-center gap-2 text-2xl font-extrabold tracking-tight text-text">
+        <i data-lucide="dumbbell" class="h-6 w-6 text-perf" aria-hidden="true"></i>
+        FitCoach
+      </a>
+      <p class="mt-2 text-sm text-muted">{% block auth_subtitle %}{% endblock %}</p>
     </div>
 
-    <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+    <div class="card p-6 shadow-glow">
       {% if form and form.non_field_errors %}
-      <div class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
         {% for e in form.non_field_errors %}{{ e }}{% endfor %}
       </div>
       {% endif %}
       {% block auth_content %}{% endblock %}
     </div>
 
-    <div class="mt-4 text-center text-sm text-slate-500">{% block auth_footer %}{% endblock %}</div>
+    <div class="mt-5 text-center text-sm text-muted">{% block auth_footer %}{% endblock %}</div>
   </div>
 </div>
 
 <style>
   .auth-form p { margin-bottom: 1rem; }
-  .auth-form label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #334155; }
-  .auth-form input { width: 100%; border-radius: 0.75rem; border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; color: #1e293b; }
-  .auth-form input:focus { outline: none; border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25); }
-  .auth-form .helptext { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: #94a3b8; }
-  .auth-form ul.errorlist { list-style: none; padding: 0; margin: 0.25rem 0 0; color: #dc2626; font-size: 0.75rem; }
+  .auth-form label { display: block; margin-bottom: 0.35rem; font-size: 0.875rem; font-weight: 500; color: rgb(var(--text)); }
+  .auth-form input {
+    width: 100%; border-radius: 0.75rem;
+    border: 1px solid rgb(var(--border));
+    background-color: rgb(var(--surface-2));
+    padding: 0.6rem 0.75rem; color: rgb(var(--text));
+  }
+  .auth-form input::placeholder { color: rgb(var(--muted)); }
+  .auth-form input:focus {
+    outline: none; border-color: rgb(var(--accent));
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.25);
+  }
+  .auth-form .helptext { display: block; margin-top: 0.35rem; font-size: 0.75rem; color: rgb(var(--muted)); }
+  .auth-form ul.errorlist { list-style: none; padding: 0; margin: 0.35rem 0 0; color: #fca5a5; font-size: 0.75rem; }
 </style>
 {% endblock %}

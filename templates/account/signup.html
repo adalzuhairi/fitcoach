@@ -9,7 +9,7 @@
   {% if redirect_field_value %}
     <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
   {% endif %}
-  <button type="submit" class="w-full rounded-xl bg-accent px-4 py-2 font-semibold text-white hover:bg-blue-700">
+  <button type="submit" class="btn-primary w-full">
     Créer mon compte
   </button>
 </form>
@@ -17,5 +17,5 @@
 
 {% block auth_footer %}
   Déjà inscrit ?
-  <a href="{% url 'account_login' %}" class="font-medium text-accent hover:text-blue-700">Connecte-toi</a>
+  <a href="{% url 'account_login' %}" class="link-accent font-medium">Connecte-toi</a>
 {% endblock %}
