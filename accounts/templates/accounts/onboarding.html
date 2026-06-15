@@ -3,7 +3,26 @@
 
 {% block body %}
 <div class="flex min-h-screen items-center justify-center px-4 py-10">
-  <div class="w-full max-w-xl" x-data="{ step: 1, total: 4 }">
+  <div class="w-full max-w-xl"
+       x-data="{
+         step: 1,
+         total: 4,
+         next() {
+           const current = this.$refs['step' + this.step];
+           const invalid = current.querySelector(':invalid');
+           if (invalid) { invalid.reportValidity(); return; }
+           this.step++;
+         }
+       }"
+       x-init="
+         {% if form.errors %}
+         const firstError = $el.querySelector('.text-red-400');
+         if (firstError) {
+           const stepDiv = firstError.closest('[data-step]');
+           if (stepDiv) step = parseInt(stepDiv.dataset.step);
+         }
+         {% endif %}
+       ">
 
     <div class="mb-6 text-center">
       <h1 class="text-2xl font-bold text-text">Bienvenue sur FitCoach</h1>
@@ -16,7 +35,7 @@
            :style="`width: ${(step / total) * 100}%`"></div>
     </div>
 
-    <form method="post" class="form-dark card p-6">
+    <form method="post" class="form-dark card p-6" novalidate>
       {% csrf_token %}
 
       {% if form.non_field_errors %}
@@ -26,7 +45,7 @@
       {% endif %}
 
       <!-- Étape 1 — Profil -->
-      <div x-show="step === 1">
+      <div x-show="step === 1" data-step="1" x-ref="step1">
         <h2 class="mb-4 text-lg font-semibold text-text">1. Ton profil</h2>
         {% include "accounts/_field.html" with field=form.sexe %}
         {% include "accounts/_field.html" with field=form.date_naissance %}
@@ -35,7 +54,7 @@
       </div>
 
       <!-- Étape 2 — Objectif & activité -->
-      <div x-show="step === 2" x-cloak>
+      <div x-show="step === 2" x-cloak data-step="2" x-ref="step2">
         <h2 class="mb-4 text-lg font-semibold text-text">2. Objectif &amp; activité</h2>
         {% include "accounts/_field.html" with field=form.objectif %}
         {% include "accounts/_field.html" with field=form.niveau %}
@@ -44,13 +63,13 @@
       </div>
 
       <!-- Étape 3 — Matériel -->
-      <div x-show="step === 3" x-cloak>
+      <div x-show="step === 3" x-cloak data-step="3" x-ref="step3">
         <h2 class="mb-4 text-lg font-semibold text-text">3. Ton matériel</h2>
         {% include "accounts/_field.html" with field=form.materiel %}
       </div>
 
       <!-- Étape 4 — Préférences & nutrition -->
-      <div x-show="step === 4" x-cloak>
+      <div x-show="step === 4" x-cloak data-step="4" x-ref="step4">
         <h2 class="mb-4 text-lg font-semibold text-text">4. Préférences &amp; nutrition</h2>
         {% include "accounts/_field.html" with field=form.nombre_repas %}
         {% include "accounts/_field.html" with field=form.preferences_alimentaires %}
@@ -66,7 +85,7 @@
         </button>
         <span x-show="step === 1" x-cloak></span>
 
-        <button type="button" x-show="step < total" @click="step++" class="btn-primary ml-auto px-5 py-2">
+        <button type="button" x-show="step < total" @click="next()" class="btn-primary ml-auto px-5 py-2">
           Suivant →
         </button>
         <button type="submit" x-show="step === total" x-cloak class="btn-primary ml-auto px-5 py-2">
