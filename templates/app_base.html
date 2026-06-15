@@ -26,7 +26,7 @@ Les pages applicatives remplissent {% block content %}.
       </button>
     </div>
 
-    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+    <nav id="tour-nav" class="flex-1 space-y-1 overflow-y-auto px-3 py-2">
       {% include "_nav_link.html" with url="tracking:dashboard" label="Tableau de bord" icon="layout-dashboard" %}
       {% include "_nav_link.html" with url="training:programme" label="Mon programme" icon="dumbbell" %}
       {% include "_nav_link.html" with url="nutrition:ma_nutrition" label="Ma nutrition" icon="utensils" match="nutrition:ma_nutrition nutrition:recettes_repas nutrition:generer_recettes" %}
@@ -55,7 +55,7 @@ Les pages applicatives remplissent {% block content %}.
   <div class="flex min-w-0 flex-1 flex-col">
     <!-- Barre supérieure mobile (burger) -->
     <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-surface/90 px-4 backdrop-blur lg:hidden">
-      <button @click="nav = true" class="-ml-1 rounded-lg p-1 text-muted hover:bg-white/5 hover:text-text" aria-label="Ouvrir le menu">
+      <button id="tour-burger" @click="nav = true" class="-ml-1 rounded-lg p-1 text-muted hover:bg-white/5 hover:text-text" aria-label="Ouvrir le menu">
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
         </svg>

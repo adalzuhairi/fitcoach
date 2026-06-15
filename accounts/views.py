@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.http import JsonResponse
 
 from coach import services as coach_services
 from nutrition import services
@@ -56,3 +57,18 @@ def profil(request):
         .first()
     )
     return render(request, "accounts/profil.html", {"profile": profile, "plan": plan})
+
+
+@login_required
+def tutoriel_seen(request):
+    """Marque le tutoriel comme vu côté serveur (POST).
+
+    Utilisé pour la persistance multi-appareil (P2). Retourne JSON.
+    """
+    if request.method == "POST":
+        profile = Profile.objects.filter(user=request.user).first()
+        if profile:
+            profile.tutoriel_vu = True
+            profile.save(update_fields=["tutoriel_vu"])
+            return JsonResponse({"ok": True})
+    return JsonResponse({"ok": False}, status=400)

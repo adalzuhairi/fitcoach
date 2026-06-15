@@ -45,7 +45,7 @@
   {% endif %}
 
   <!-- Prochaine séance : carte mise en avant + CTA d'action (lime) -->
-  <div class="card relative mb-4 overflow-hidden bg-gradient-to-br from-surface-2 to-surface p-6 shadow-glow">
+  <div id="tour-seance" class="card relative mb-4 overflow-hidden bg-gradient-to-br from-surface-2 to-surface p-6 shadow-glow">
     <div aria-hidden="true" class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl"></div>
     <p class="stat-label">Prochaine séance</p>
     {% if prochaine_seance %}
@@ -70,7 +70,7 @@
   <div class="grid gap-4 sm:grid-cols-2">
 
     <!-- Objectifs du jour -->
-    <a href="{% url 'nutrition:ma_nutrition' %}" class="card card-hover block p-5">
+    <a id="tour-nutrition" href="{% url 'nutrition:ma_nutrition' %}" class="card card-hover block p-5">
       <div class="flex items-center justify-between">
         <p class="stat-label">Objectifs du jour</p>
         <span class="link-accent text-xs">Nutrition →</span>
@@ -147,4 +147,111 @@
     })();
   </script>
 {% endif %}
+
+  <!-- Visite guidée légère : 3 bulles au premier passage (mémorisé en localStorage).
+       Relançable via « Revoir le tuto » dans le profil (?tuto=1). Tout en Alpine. -->
+  <div x-data="tourGuide()" x-init="init()" @resize.window.debounce.150ms="reposition()">
+    <template x-if="actif">
+      <div>
+        <!-- bloque l'interaction avec la page pendant la visite -->
+        <div class="fixed inset-0 z-[59]"></div>
+        <!-- halo « spotlight » : trou clair sur la cible, reste assombri via box-shadow -->
+        <div class="pointer-events-none fixed z-[60] rounded-2xl ring-2 ring-perf transition-all duration-200"
+             :style="spotStyle"></div>
+        <!-- bulle -->
+        <div class="card fixed z-[61] w-72 max-w-[calc(100vw-1.5rem)] p-4 shadow-glow"
+             :style="bubbleStyle">
+          <p class="text-sm font-semibold text-text" x-text="etape.titre"></p>
+          <p class="mt-1 text-sm text-muted" x-text="etape.texte"></p>
+          <div class="mt-3 flex items-center justify-between">
+            <button @click="passer()" class="text-xs text-muted transition hover:text-text">Passer</button>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-muted" x-text="(index + 1) + ' / ' + etapes.length"></span>
+              <button @click="suivant()" class="btn-primary px-3 py-1.5 text-xs"
+                      x-text="index < etapes.length - 1 ? 'Suivant' : 'Terminé'"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    function tourGuide() {
+      return {
+        actif: false,
+        index: 0,
+        spotStyle: "",
+        bubbleStyle: "",
+        etapes: [
+          { cible: "tour-nav", cibleMobile: "tour-burger", titre: "Ta navigation",
+            texte: "Retrouve ici ton programme, ta nutrition, ta progression et tes mesures." },
+          { cible: "tour-seance", titre: "Ta prochaine séance",
+            texte: "Ton point de départ chaque jour : lance ta séance d'un seul tap." },
+          { cible: "tour-nutrition", titre: "Ta nutrition du jour",
+            texte: "Tes calories et macros cibles, calculées à partir de ton profil." },
+        ],
+        get etape() { return this.etapes[this.index]; },
+        init() {
+          const force = new URLSearchParams(location.search).get("tuto") === "1";
+          const serverAuth = {% if request.user.is_authenticated %}true{% else %}false{% endif %};
+          const serverVu = {% if request.user.is_authenticated %}{% if profile.tutoriel_vu %}true{% else %}false{% endif %}{% else %}false{% endif %};
+          const vu = localStorage.getItem("fitcoach_tutoriel_vu");
+          if (force || (!serverVu && !vu)) {
+            this.$nextTick(() => { this.actif = true; this.index = 0; this.reposition(); });
+          }
+          this._serverAuth = serverAuth;
+        },
+        cibleEl() {
+          const e = this.etape;
+          const mobile = window.matchMedia("(max-width: 1023px)").matches;
+          const id = (mobile && e.cibleMobile) ? e.cibleMobile : e.cible;
+          return document.getElementById(id);
+        },
+        reposition() {
+          if (!this.actif) return;
+          const el = this.cibleEl();
+          if (!el) { this.suivant(); return; }
+          el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          const r = el.getBoundingClientRect();
+          const pad = 8;
+          this.spotStyle =
+            `top:${r.top - pad}px;left:${r.left - pad}px;` +
+            `width:${r.width + 2 * pad}px;height:${r.height + 2 * pad}px;` +
+            `box-shadow:0 0 0 9999px rgba(10,14,23,0.72)`;
+          const bw = 288, bh = 160, marge = 12;
+          let top = r.bottom + marge;
+          if (top + bh > window.innerHeight) top = Math.max(marge, r.top - bh - marge);
+          let left = Math.min(Math.max(marge, r.left), window.innerWidth - bw - marge);
+          this.bubbleStyle = `top:${top}px;left:${left}px`;
+        },
+        suivant() {
+          if (this.index < this.etapes.length - 1) {
+            this.index++;
+            this.$nextTick(() => this.reposition());
+          } else {
+            this.terminer();
+          }
+        },
+        passer() { this.terminer(); },
+        terminer() {
+          this.actif = false;
+          localStorage.setItem("fitcoach_tutoriel_vu", "1");
+          if (location.search) history.replaceState(null, "", location.pathname);
+          // Si l'utilisateur est connecté, notifie le serveur pour persistance multi-appareil
+          if (this._serverAuth) {
+            const csrftoken = (function(){
+              const m = document.cookie.match(/(^|;)\s*csrftoken=([^;]+)/);
+              return m ? decodeURIComponent(m[2]) : null;
+            })();
+            fetch("{% url 'accounts:tutoriel_seen' %}", {
+              method: "POST",
+              headers: { "X-CSRFToken": csrftoken, "Content-Type": "application/json" },
+              body: JSON.stringify({ seen: true }),
+            }).catch(() => {});
+          }
+        },
+      };
+    }
+  </script>
 {% endblock %}

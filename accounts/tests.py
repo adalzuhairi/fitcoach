@@ -260,3 +260,19 @@ class AccesAnonymeTests(TestCase):
             r = self.client.get(reverse(nom))
             self.assertEqual(r.status_code, 302, nom)
             self.assertIn("/accounts/login/", r.url, nom)
+
+
+class TutorielEndpointTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tuto", password="x")
+        self.profile = Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+
+    def test_post_mark_tutoriel_seen(self):
+        self.client.force_login(self.user)
+        self.assertFalse(Profile.objects.get(user=self.user).tutoriel_vu)
+        r = self.client.post(reverse("accounts:tutoriel_seen"))
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(Profile.objects.get(user=self.user).tutoriel_vu)

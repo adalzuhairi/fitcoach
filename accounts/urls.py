@@ -7,4 +7,5 @@ app_name = "accounts"
 urlpatterns = [
     path("onboarding/", views.onboarding, name="onboarding"),
     path("profil/", views.profil, name="profil"),
+    path("tutoriel/", views.tutoriel_seen, name="tutoriel_seen"),
 ]
