@@ -42,6 +42,11 @@ def dashboard(request):
             "poids_actuel": services.poids_actuel(request.user, profile),
             "historique_poids": historique,
             "hydratation": services.resume_hydratation(request.user, profile),
+            "tutoriel_vu": getattr(profile, "tutoriel_vu", False),
+            "dashboard_init": {
+                "serverAuth": request.user.is_authenticated,
+                "serverVu": getattr(profile, "tutoriel_vu", False),
+            },
         },
     )
 

@@ -50,10 +50,12 @@
     <p class="stat-label">Prochaine séance</p>
     {% if prochaine_seance %}
       <h2 class="mt-1 text-xl font-bold text-text">{{ prochaine_seance.nom }}</h2>
+      {% with nb=prochaine_seance.exercises.all|length %}
       <p class="mt-1 text-sm text-muted">
-        {{ prochaine_seance.exercises.count }} exercice{{ prochaine_seance.exercises.count|pluralize }}
+        {{ nb }} exercice{{ nb|pluralize }}
         · {{ program.get_split_display }}
       </p>
+      {% endwith %}
       <a href="{% url 'training:seance' prochaine_seance.id %}" class="btn-action mt-4">
         <i data-lucide="play" class="h-4 w-4" aria-hidden="true"></i>
         Démarrer la séance
@@ -220,6 +222,7 @@
       </div>
     </template>
   </div>
+  {{ dashboard_init|json_script:"dashboard-init" }}
 
   <script>
     // Carte hydratation : ajout d'eau sans rechargement (fetch + MAJ de la barre).
@@ -273,8 +276,9 @@
         get etape() { return this.etapes[this.index]; },
         init() {
           const force = new URLSearchParams(location.search).get("tuto") === "1";
-          const serverAuth = {% if request.user.is_authenticated %}true{% else %}false{% endif %};
-          const serverVu = {% if request.user.is_authenticated %}{% if profile.tutoriel_vu %}true{% else %}false{% endif %}{% else %}false{% endif %};
+          const initData = JSON.parse(document.getElementById("dashboard-init").textContent || '{}');
+          const serverAuth = Boolean(initData.serverAuth);
+          const serverVu = Boolean(initData.serverVu);
           const vu = localStorage.getItem("fitcoach_tutoriel_vu");
           if (force || (!serverVu && !vu)) {
             this.$nextTick(() => { this.actif = true; this.index = 0; this.reposition(); });
