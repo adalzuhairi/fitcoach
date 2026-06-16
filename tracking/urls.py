@@ -6,6 +6,7 @@ app_name = "tracking"
 
 urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("eau/ajouter/", views.ajouter_eau, name="ajouter_eau"),
     path("progression/", views.progression, name="progression"),
     path("mesures/", views.mesures, name="mesures"),
     path("mesures/<int:pk>/modifier/", views.modifier_mesure, name="modifier_mesure"),

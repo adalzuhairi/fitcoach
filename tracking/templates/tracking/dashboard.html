@@ -67,6 +67,51 @@
     {% endif %}
   </div>
 
+  <!-- Hydratation du jour : bu / objectif, barre de progression, ajouts rapides -->
+  <div class="card mb-4 p-5"
+       x-data="hydratation({{ hydratation.bu_ml }}, {{ hydratation.objectif_ml }}, {{ hydratation.pourcentage }})">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i data-lucide="droplet" class="h-4 w-4 text-accent" aria-hidden="true"></i>
+        <p class="stat-label">Hydratation</p>
+      </div>
+      {% if hydratation.jour_entrainement %}
+        <span class="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">Jour d'entraînement +500 ml</span>
+      {% endif %}
+    </div>
+
+    <p class="mt-2">
+      <span class="stat-value text-accent" x-text="buL"></span>
+      <span class="text-base font-medium text-muted">/ <span x-text="objectifL"></span> L</span>
+    </p>
+
+    <!-- Barre de progression -->
+    <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-2" role="progressbar"
+         :aria-valuenow="bu" aria-valuemin="0" :aria-valuemax="objectif">
+      <div class="h-full rounded-full bg-accent transition-all duration-300"
+           :style="`width: ${pourcentage}%`"></div>
+    </div>
+
+    <!-- Ajouts rapides (fonctionnent sans JS via form POST ; Alpine intercepte) -->
+    <div class="mt-4 flex flex-wrap gap-2">
+      <form method="post" action="{% url 'tracking:ajouter_eau' %}" @submit.prevent="ajouter(250)">
+        {% csrf_token %}
+        <input type="hidden" name="quantite_ml" value="250">
+        <button type="submit" class="btn-ghost px-4 py-2 text-sm">+250 ml</button>
+      </form>
+      <form method="post" action="{% url 'tracking:ajouter_eau' %}" @submit.prevent="ajouter(500)">
+        {% csrf_token %}
+        <input type="hidden" name="quantite_ml" value="500">
+        <button type="submit" class="btn-ghost px-4 py-2 text-sm">+500 ml</button>
+      </form>
+      <form method="post" action="{% url 'tracking:ajouter_eau' %}" @submit.prevent="ajouter(750)">
+        {% csrf_token %}
+        <input type="hidden" name="quantite_ml" value="750">
+        <button type="submit" class="btn-ghost px-4 py-2 text-sm">+750 ml</button>
+      </form>
+    </div>
+  </div>
+
   <div class="grid gap-4 sm:grid-cols-2">
 
     <!-- Objectifs du jour -->
@@ -177,6 +222,40 @@
   </div>
 
   <script>
+    // Carte hydratation : ajout d'eau sans rechargement (fetch + MAJ de la barre).
+    function hydratation(bu, objectif, pourcentage) {
+      return {
+        bu, objectif, pourcentage,
+        // ml → litres, format français. Le bu garde 2 décimales (tranches de
+        // 250 ml → tombe juste, ex. 750 → "0,75") ; l'objectif est arrondi à
+        // 1 décimale (le centilitre près n'apporte rien, ex. 2625 → "2,6").
+        fmtL(ml, decimales) {
+          return (ml / 1000).toLocaleString("fr-FR", { maximumFractionDigits: decimales });
+        },
+        get buL() { return this.fmtL(this.bu, 2); },
+        get objectifL() { return this.fmtL(this.objectif, 1); },
+        ajouter(q) {
+          const csrftoken = (document.cookie.match(/(^|;)\s*csrftoken=([^;]+)/) || [])[2];
+          fetch("{% url 'tracking:ajouter_eau' %}", {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": csrftoken ? decodeURIComponent(csrftoken) : "",
+              "X-Requested-With": "XMLHttpRequest",
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "quantite_ml=" + q,
+          })
+            .then((r) => r.ok ? r.json() : Promise.reject(r))
+            .then((d) => {
+              this.bu = d.bu_ml;
+              this.objectif = d.objectif_ml;
+              this.pourcentage = d.pourcentage;
+            })
+            .catch(() => { window.location.reload(); });
+        },
+      };
+    }
+
     function tourGuide() {
       return {
         actif: false,

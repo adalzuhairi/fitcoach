@@ -22,6 +22,10 @@ import datetime
 # Mensurations optionnelles tracées sur les graphiques (hors poids).
 CHAMPS_TOURS = ("tour_taille", "tour_bras", "tour_poitrine", "tour_cuisses")
 
+# Hydratation — base de référence et bonus les jours d'entraînement.
+EAU_ML_PAR_KG = 35
+EAU_BONUS_ENTRAINEMENT_ML = 500
+
 
 def etapes_demarrage(user):
     """Checklist de démarrage du dashboard, reflétant l'état réel du compte.
@@ -57,6 +61,74 @@ def etapes_demarrage(user):
         },
     ]
     return {"etapes": etapes, "tout_termine": all(e["done"] for e in etapes)}
+
+
+def objectif_hydratation(profile, jour_entrainement=False):
+    """Objectif d'eau du jour en ml : 35 ml/kg de poids de corps, + bonus.
+
+    Le bonus (`EAU_BONUS_ENTRAINEMENT_ML`) s'ajoute les jours où l'utilisateur
+    s'entraîne (transpiration). Renvoie un entier (ml).
+    """
+    base = round(EAU_ML_PAR_KG * float(profile.poids_kg))
+    if jour_entrainement:
+        base += EAU_BONUS_ENTRAINEMENT_ML
+    return base
+
+
+def est_jour_entrainement(user, date=None):
+    """True si l'utilisateur a loggé une séance ce jour (signal concret)."""
+    from tracking.models import WorkoutLog
+
+    date = date or datetime.date.today()
+    return WorkoutLog.objects.filter(user=user, date=date).exists()
+
+
+def ajouter_eau(user, quantite_ml, date=None):
+    """Ajoute `quantite_ml` à la consommation du jour (incrément atomique).
+
+    Crée la ligne (user, date) si absente, sinon cumule via F() pour éviter
+    toute condition de course. Renvoie l'instance WaterIntake à jour.
+    """
+    from django.db.models import F
+
+    from tracking.models import WaterIntake
+
+    date = date or datetime.date.today()
+    intake, cree = WaterIntake.objects.get_or_create(
+        user=user, date=date, defaults={"quantite_ml": quantite_ml}
+    )
+    if not cree:
+        intake.quantite_ml = F("quantite_ml") + quantite_ml
+        intake.save(update_fields=["quantite_ml"])
+        intake.refresh_from_db()
+    return intake
+
+
+def hydratation_du_jour(user, date=None):
+    """Quantité d'eau bue aujourd'hui (ml), 0 si aucune entrée."""
+    from tracking.models import WaterIntake
+
+    date = date or datetime.date.today()
+    intake = WaterIntake.objects.filter(user=user, date=date).first()
+    return intake.quantite_ml if intake is not None else 0
+
+
+def resume_hydratation(user, profile, date=None):
+    """Résumé du jour pour le dashboard : bu / objectif / % / jour d'entraînement.
+
+    Le pourcentage est borné à 100 pour l'affichage de la barre de progression.
+    """
+    date = date or datetime.date.today()
+    jour_entrainement = est_jour_entrainement(user, date)
+    objectif = objectif_hydratation(profile, jour_entrainement)
+    bu = hydratation_du_jour(user, date)
+    pourcentage = min(100, round(bu / objectif * 100)) if objectif else 0
+    return {
+        "bu_ml": bu,
+        "objectif_ml": objectif,
+        "pourcentage": pourcentage,
+        "jour_entrainement": jour_entrainement,
+    }
 
 
 def prochaine_seance(user, program):

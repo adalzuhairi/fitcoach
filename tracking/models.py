@@ -71,6 +71,33 @@ class SetLog(models.Model):
         return f"Série {self.serie_numero} — {self.repetitions_faites}x{self.charge_kg}kg"
 
 
+class WaterIntake(models.Model):
+    """Consommation d'eau cumulée d'un utilisateur sur une journée.
+
+    Une seule ligne par (user, date) : chaque ajout incrémente `quantite_ml`.
+    La réinitialisation quotidienne est gratuite — on lit toujours la ligne du
+    jour courant, celle de la veille reste à part.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="water_intakes",
+        verbose_name="utilisateur",
+    )
+    date = models.DateField("date")
+    quantite_ml = models.PositiveIntegerField("quantité bue (ml)", default=0)
+
+    class Meta:
+        verbose_name = "consommation d'eau"
+        verbose_name_plural = "consommations d'eau"
+        ordering = ["-date"]
+        unique_together = [("user", "date")]
+
+    def __str__(self) -> str:
+        return f"{self.quantite_ml} ml le {self.date} ({self.user})"
+
+
 class BodyMeasurement(models.Model):
     """Mesures corporelles d'un utilisateur à une date donnée."""
 

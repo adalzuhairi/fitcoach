@@ -18,7 +18,7 @@ from training.models import (
     WorkoutExercise,
 )
 from tracking import services
-from tracking.models import BodyMeasurement, SetLog, WorkoutLog
+from tracking.models import BodyMeasurement, SetLog, WaterIntake, WorkoutLog
 
 User = get_user_model()
 
@@ -383,3 +383,145 @@ class DashboardChecklistTests(TestCase):
         )
         response = self.client.get(reverse("tracking:dashboard"))
         self.assertNotContains(response, "Premiers pas")
+
+
+def _faux_profil(poids):
+    """Profil minimal pour les fonctions pures (seul poids_kg est lu)."""
+    return type("P", (), {"poids_kg": Decimal(str(poids))})()
+
+
+class ObjectifHydratationTests(TestCase):
+    def test_base_35ml_par_kg(self):
+        # 35 ml/kg × 80 kg = 2800 ml, sans bonus.
+        self.assertEqual(services.objectif_hydratation(_faux_profil(80)), 2800)
+
+    def test_bonus_jour_entrainement(self):
+        # 2800 + 500 ml de bonus un jour d'entraînement.
+        self.assertEqual(
+            services.objectif_hydratation(_faux_profil(80), jour_entrainement=True),
+            3300,
+        )
+
+    def test_arrondi(self):
+        # 35 × 72.5 = 2537.5 → arrondi à 2538.
+        self.assertEqual(services.objectif_hydratation(_faux_profil("72.5")), 2538)
+
+
+class EstJourEntrainementTests(TrackingTestBase):
+    def test_vrai_si_seance_loggee_ce_jour(self):
+        jour = datetime.date(2026, 6, 14)
+        WorkoutLog.objects.create(user=self.user, workout_day=self.j1, date=jour)
+        self.assertTrue(services.est_jour_entrainement(self.user, jour))
+
+    def test_faux_sans_seance(self):
+        self.assertFalse(
+            services.est_jour_entrainement(self.user, datetime.date(2026, 6, 14))
+        )
+
+    def test_faux_si_seance_un_autre_jour(self):
+        WorkoutLog.objects.create(
+            user=self.user, workout_day=self.j1, date=datetime.date(2026, 6, 13)
+        )
+        self.assertFalse(
+            services.est_jour_entrainement(self.user, datetime.date(2026, 6, 14))
+        )
+
+
+class AjouterEauTests(TrackingTestBase):
+    def test_cumule_sur_la_journee(self):
+        jour = datetime.date(2026, 6, 14)
+        services.ajouter_eau(self.user, 250, date=jour)
+        services.ajouter_eau(self.user, 500, date=jour)
+        self.assertEqual(services.hydratation_du_jour(self.user, jour), 750)
+        # Une seule ligne pour le jour (cumul, pas d'entrées multiples).
+        self.assertEqual(WaterIntake.objects.filter(user=self.user).count(), 1)
+
+    def test_reinitialisation_quotidienne(self):
+        # De l'eau bue hier ne compte pas dans le total d'aujourd'hui.
+        services.ajouter_eau(self.user, 1000, date=datetime.date(2026, 6, 13))
+        self.assertEqual(
+            services.hydratation_du_jour(self.user, datetime.date(2026, 6, 14)), 0
+        )
+
+    def test_isolation_par_utilisateur(self):
+        autre = User.objects.create_user(username="autre", password="x")
+        jour = datetime.date(2026, 6, 14)
+        services.ajouter_eau(self.user, 500, date=jour)
+        self.assertEqual(services.hydratation_du_jour(autre, jour), 0)
+
+    def test_jour_vide_renvoie_zero(self):
+        self.assertEqual(
+            services.hydratation_du_jour(self.user, datetime.date(2026, 6, 14)), 0
+        )
+
+
+class ResumeHydratationTests(TrackingTestBase):
+    def test_pourcentage_et_objectif(self):
+        jour = datetime.date(2026, 6, 14)
+        services.ajouter_eau(self.user, 1400, date=jour)
+        resume = services.resume_hydratation(self.user, _faux_profil(80), date=jour)
+        self.assertEqual(resume["objectif_ml"], 2800)  # pas de séance ce jour
+        self.assertEqual(resume["bu_ml"], 1400)
+        self.assertEqual(resume["pourcentage"], 50)
+        self.assertFalse(resume["jour_entrainement"])
+
+    def test_pourcentage_borne_a_100(self):
+        jour = datetime.date(2026, 6, 14)
+        WaterIntake.objects.create(user=self.user, date=jour, quantite_ml=5000)
+        resume = services.resume_hydratation(self.user, _faux_profil(80), date=jour)
+        self.assertEqual(resume["pourcentage"], 100)
+
+    def test_objectif_inclut_bonus_les_jours_de_seance(self):
+        jour = datetime.date(2026, 6, 14)
+        WorkoutLog.objects.create(user=self.user, workout_day=self.j1, date=jour)
+        resume = services.resume_hydratation(self.user, _faux_profil(80), date=jour)
+        self.assertTrue(resume["jour_entrainement"])
+        self.assertEqual(resume["objectif_ml"], 3300)
+
+
+class AjouterEauEndpointTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="ahmed", password="motdepasse123")
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        self.client.force_login(self.user)
+        self.url = reverse("tracking:ajouter_eau")
+
+    def _post(self, quantite, ajax=True):
+        kwargs = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"} if ajax else {}
+        return self.client.post(self.url, {"quantite_ml": quantite}, **kwargs)
+
+    def test_ajout_met_a_jour_et_renvoie_json(self):
+        r1 = self._post(250)
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r1.json()["bu_ml"], 250)
+        # Second ajout : cumul.
+        r2 = self._post(500)
+        self.assertEqual(r2.json()["bu_ml"], 750)
+        self.assertEqual(r2.json()["objectif_ml"], 2800)
+
+    def test_quantite_hors_plage_rejetee(self):
+        self.assertEqual(self._post(0).status_code, 400)
+        self.assertEqual(self._post(2001).status_code, 400)
+
+    def test_quantite_non_numerique_rejetee(self):
+        self.assertEqual(self._post("abc").status_code, 400)
+
+    def test_login_requis(self):
+        self.client.logout()
+        r = self._post(250)
+        self.assertEqual(r.status_code, 302)
+        self.assertNotIn("/dashboard", r.url)  # redirigé vers le login
+
+    def test_scope_utilisateur(self):
+        autre = User.objects.create_user(username="autre", password="x")
+        self._post(250)
+        self.assertEqual(WaterIntake.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(WaterIntake.objects.filter(user=autre).count(), 0)
+
+    def test_fallback_sans_ajax_redirige_vers_dashboard(self):
+        r = self._post(250, ajax=False)
+        self.assertRedirects(r, reverse("tracking:dashboard"))
+        self.assertEqual(services.hydratation_du_jour(self.user), 250)
