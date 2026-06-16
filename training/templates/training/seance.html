@@ -20,13 +20,51 @@
           <h2 class="font-semibold text-text" x-text="ex.nom"></h2>
           <span class="shrink-0 text-sm text-muted" x-text="ex.cible"></span>
         </div>
-        <p class="mb-3 text-xs text-muted">
+        <p class="mb-2 text-xs text-muted">
           repos <span x-text="ex.repos"></span> s
           <template x-if="ex.suggestion !== null">
             <span> · charge suggérée <span class="font-medium text-perf" x-text="ex.suggestion + ' kg'"></span></span>
           </template>
           <template x-if="ex.notes"><span> · <span x-text="ex.notes"></span></span></template>
         </p>
+
+        <!-- Comment exécuter ? — guide débutant, replié par défaut (discret) -->
+        <template x-if="ex.guide.aGuide">
+          <div x-data="{ open: false }" class="mb-3">
+            <button type="button" @click="open = !open" :aria-expanded="open"
+                    class="flex items-center gap-1.5 text-xs font-medium text-accent transition hover:brightness-110">
+              <span x-text="open ? '▾' : '▸'" class="inline-block w-2 text-center"></span>
+              Comment exécuter ?
+            </button>
+            <div x-show="open" x-transition x-cloak
+                 class="mt-2 space-y-3 rounded-lg border border-border bg-surface-2 p-3 text-sm">
+              <template x-if="ex.guide.execution">
+                <div>
+                  <p class="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">Positionnement &amp; exécution</p>
+                  <p class="whitespace-pre-line text-muted" x-text="ex.guide.execution"></p>
+                </div>
+              </template>
+              <template x-if="ex.guide.securite">
+                <div>
+                  <p class="mb-0.5 text-xs font-semibold uppercase tracking-wide text-perf">Sécurité</p>
+                  <p class="whitespace-pre-line text-muted" x-text="ex.guide.securite"></p>
+                </div>
+              </template>
+              <template x-if="ex.guide.erreurs">
+                <div>
+                  <p class="mb-0.5 text-xs font-semibold uppercase tracking-wide text-amber-400">Erreurs fréquentes</p>
+                  <p class="whitespace-pre-line text-muted" x-text="ex.guide.erreurs"></p>
+                </div>
+              </template>
+              <div>
+                <p class="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">Muscles ciblés</p>
+                <p class="text-muted">
+                  <span class="font-medium text-text" x-text="ex.guide.musclePrimaire"></span><template x-if="ex.guide.musclesSecondaires"><span> · <span x-text="ex.guide.musclesSecondaires"></span></span></template>
+                </p>
+              </div>
+            </div>
+          </div>
+        </template>
 
         <!-- Séries -->
         <div class="space-y-2">

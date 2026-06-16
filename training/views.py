@@ -53,15 +53,30 @@ def seance(request, workout_day_id):
                     "charge": float(s.charge_kg) if s else None,
                 }
             )
+        ex = we.exercise
         exercices.append(
             {
                 "weId": we.id,
-                "nom": we.exercise.nom,
+                "nom": ex.nom,
                 "cible": f"{we.series} × {we.repetitions}",
                 "repos": we.temps_repos_secondes,
                 "notes": we.notes,
                 "suggestion": float(suggestion) if suggestion is not None else None,
                 "series": series,
+                # Guide débutant « Comment exécuter ? » (encart dépliable, mobile).
+                "guide": {
+                    "execution": ex.description_technique,
+                    "securite": ex.consignes_securite,
+                    "erreurs": ex.erreurs_frequentes,
+                    "musclePrimaire": ex.get_groupe_musculaire_display(),
+                    "musclesSecondaires": ex.muscles_secondaires,
+                    "aGuide": bool(
+                        ex.description_technique
+                        or ex.consignes_securite
+                        or ex.erreurs_frequentes
+                        or ex.muscles_secondaires
+                    ),
+                },
             }
         )
 

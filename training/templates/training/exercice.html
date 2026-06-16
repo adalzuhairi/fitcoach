@@ -33,15 +33,44 @@
     </div>
   </div>
 
-  <!-- Technique -->
+  <!-- Positionnement & exécution -->
   <div class="card mt-4 p-6">
-    <h2 class="mb-2 text-lg font-semibold text-text">Technique d'exécution</h2>
+    <h2 class="mb-2 text-lg font-semibold text-text">Positionnement &amp; exécution</h2>
     {% if exercice.description_technique %}
       <p class="whitespace-pre-line text-sm leading-relaxed text-muted">{{ exercice.description_technique }}</p>
     {% else %}
       <p class="text-sm text-muted">Description technique à venir.</p>
     {% endif %}
   </div>
+
+  <!-- Muscles ciblés : primaire (badge) + secondaires si renseignés -->
+  <div class="card mt-4 p-6">
+    <h2 class="mb-3 text-lg font-semibold text-text">Muscles ciblés</h2>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="rounded-full px-3 py-1 text-sm font-medium {{ exercice.groupe_musculaire|badge_groupe }}">
+        {{ exercice.get_groupe_musculaire_display }}
+      </span>
+      {% if exercice.muscles_secondaires %}
+        <span class="text-sm text-muted">en assistance : {{ exercice.muscles_secondaires }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if exercice.consignes_securite %}
+  <!-- Consignes de sécurité -->
+  <div class="card mt-4 border-l-2 border-perf/60 p-6">
+    <h2 class="mb-2 text-lg font-semibold text-text">Sécurité</h2>
+    <p class="whitespace-pre-line text-sm leading-relaxed text-muted">{{ exercice.consignes_securite }}</p>
+  </div>
+  {% endif %}
+
+  {% if exercice.erreurs_frequentes %}
+  <!-- Erreurs fréquentes -->
+  <div class="card mt-4 border-l-2 border-amber-400/60 p-6">
+    <h2 class="mb-2 text-lg font-semibold text-text">Erreurs fréquentes</h2>
+    <p class="whitespace-pre-line text-sm leading-relaxed text-muted">{{ exercice.erreurs_frequentes }}</p>
+  </div>
+  {% endif %}
 
   {% if exercice.video_url %}
   <a href="{{ exercice.video_url }}" target="_blank" rel="noopener" class="btn-ghost mt-4">

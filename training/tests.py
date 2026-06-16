@@ -6,7 +6,7 @@ from decimal import Decimal
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from tracking.models import SetLog, WorkoutLog
@@ -186,6 +186,25 @@ class SeanceViewTests(TestCase):
         resp = self.client.get(reverse("training:seance", args=[self.day.id]))
         self.assertEqual(resp.status_code, 404)
 
+    def test_seance_data_inclut_le_guide(self):
+        self.exo.consignes_securite = "Garde le dos droit."
+        self.exo.muscles_secondaires = "triceps"
+        self.exo.save()
+        resp = self.client.get(reverse("training:seance", args=[self.day.id]))
+        guide = resp.context["seance_data"]["exercices"][0]["guide"]
+        self.assertTrue(guide["aGuide"])
+        self.assertEqual(guide["securite"], "Garde le dos droit.")
+        self.assertEqual(guide["musclePrimaire"], "Pectoraux")
+        self.assertEqual(guide["musclesSecondaires"], "triceps")
+
+    def test_seance_data_guide_vide_si_rien(self):
+        # description_technique vide + aucun champ guide → aGuide False.
+        guide = (
+            self.client.get(reverse("training:seance", args=[self.day.id]))
+            .context["seance_data"]["exercices"][0]["guide"]
+        )
+        self.assertFalse(guide["aGuide"])
+
 
 class RechercherExercicesTests(TestCase):
     @classmethod
@@ -290,3 +309,105 @@ class ValiderExercicesActionTests(TestCase):
         self.ia2.refresh_from_db()
         self.assertFalse(self.ia1.a_valider)
         self.assertFalse(self.ia2.a_valider)
+
+
+class ValiderGuidesActionTests(TestCase):
+    """Action admin groupée « Valider les guides générés par l'IA »."""
+
+    def setUp(self):
+        from django.contrib.admin.sites import AdminSite
+
+        from .admin import ExerciseAdmin
+
+        self.admin = ExerciseAdmin(Exercise, AdminSite())
+        self.ex = Exercise.objects.create(
+            nom="Squat", groupe_musculaire=GroupeMusculaire.JAMBES,
+            type=TypeExercice.COMPOSE, consignes_securite="Dos gainé.",
+            guide_a_valider=True,
+        )
+
+    def test_action_passe_guide_a_valider_a_false(self):
+        self.admin.valider_guides(mock.Mock(), Exercise.objects.filter(guide_a_valider=True))
+        self.ex.refresh_from_db()
+        self.assertFalse(self.ex.guide_a_valider)
+
+
+class FicheExerciceGuideTests(TestCase):
+    """La fiche bibliothèque affiche les sections guide seulement si remplies."""
+
+    def setUp(self):
+        from accounts.models import Objectif, Profile
+
+        self.user = User.objects.create_user("ahmed", password="x")
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        self.client.force_login(self.user)
+
+    def test_sections_affichees_si_remplies(self):
+        ex = Exercise.objects.create(
+            nom="Squat barre", groupe_musculaire=GroupeMusculaire.JAMBES,
+            type=TypeExercice.COMPOSE,
+            consignes_securite="Garde le dos gainé.",
+            erreurs_frequentes="Talons qui décollent.",
+            muscles_secondaires="ischio-jambiers, fessiers",
+        )
+        resp = self.client.get(reverse("training:exercice", args=[ex.id]))
+        self.assertContains(resp, "Sécurité")
+        self.assertContains(resp, "Garde le dos gainé.")
+        self.assertContains(resp, "Erreurs fréquentes")
+        self.assertContains(resp, "ischio-jambiers, fessiers")
+
+    def test_sections_masquees_si_vides(self):
+        ex = Exercise.objects.create(
+            nom="Curl", groupe_musculaire=GroupeMusculaire.BICEPS,
+            type=TypeExercice.ISOLATION,
+        )
+        resp = self.client.get(reverse("training:exercice", args=[ex.id]))
+        self.assertNotContains(resp, "Erreurs fréquentes")
+        # La carte « Muscles ciblés » reste présente (muscle primaire toujours connu).
+        self.assertContains(resp, "Muscles ciblés")
+
+
+class EnrichirGuidesCommandTests(TestCase):
+    """Command `enrichir_guides` : idempotente, sûre sans clé, --force."""
+
+    def setUp(self):
+        self.vide = Exercise.objects.create(
+            nom="Squat", groupe_musculaire=GroupeMusculaire.JAMBES, type=TypeExercice.COMPOSE,
+        )
+        self.rempli = Exercise.objects.create(
+            nom="Curl", groupe_musculaire=GroupeMusculaire.BICEPS, type=TypeExercice.ISOLATION,
+            muscles_secondaires="avant-bras",
+        )
+
+    def _run(self, **kwargs):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("enrichir_guides", stdout=out, stderr=StringIO(), **kwargs)
+        return out.getvalue()
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_saute_les_guides_deja_remplis(self):
+        with mock.patch("coach.services.generate_exercise_guide", return_value=True) as m:
+            self._run()
+        # Seul l'exercice au guide vide est traité (idempotence).
+        m.assert_called_once()
+        self.assertEqual(m.call_args.args[0], self.vide)
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_force_regenere_tout(self):
+        with mock.patch("coach.services.generate_exercise_guide", return_value=True) as m:
+            self._run(force=True)
+        self.assertEqual(m.call_count, 2)
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_sans_cle_api_ne_fait_aucun_appel(self):
+        with mock.patch("coach.services.generate_exercise_guide") as m:
+            sortie = self._run()
+        m.assert_not_called()
+        self.assertIn("ANTHROPIC_API_KEY absente", sortie)
