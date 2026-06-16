@@ -1,0 +1,84 @@
+# Stack PRODUCTION pour NAS Synology DS713+ (DSM 6.2, sans Traefik).
+#
+# ⚠️ Fichier AUTO-SUFFISANT : se lance avec UN SEUL -f (ne PAS le layerer sur
+#    docker-compose.yml comme on le fait pour la VM). Il redéfinit donc db,
+#    redis et web en entier.
+#
+# Lancement (docker-compose v1 — avec tiret ; voir DEPLOIEMENT_NAS.md) :
+#   docker-compose -f docker-compose.nas.yml --env-file .env.nas up -d
+#
+# Différences avec la prod VM (docker-compose.prod.yml) :
+#   - pas de Traefik : aucun label, aucun réseau externe "frontend".
+#   - web publie un port sur l'hôte (127.0.0.1:8001) que le reverse proxy
+#     intégré de DSM cible (il termine le TLS et transmet X-Forwarded-Proto).
+#   - volumes = bind mounts vers /volume1/docker/fitcoach/... (visibles et
+#     sauvegardables depuis DSM) plutôt que des volumes Docker nommés.
+#   - image pré-construite sur la VM puis importée (docker load) : aucun build
+#     sur l'Atom.
+#   - gunicorn : 2 workers (Atom bi-cœur) + timeout 120 (génération IA plus
+#     lente sur ce CPU de 2013).
+
+# Format compatible docker-compose v1 (DSM 6.2). Si ton `docker-compose
+# --version` est antérieur à 1.22, abaisse cette valeur à "3.3".
+version: "3.7"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fitcoach}
+      POSTGRES_USER: ${POSTGRES_USER:-fitcoach}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    volumes:
+      # Bind mount DSM : données Postgres persistantes et sauvegardables.
+      - ${NAS_DATA:-/volume1/docker/fitcoach}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fitcoach}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - ${NAS_DATA:-/volume1/docker/fitcoach}/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    # Image construite sur la VM puis importée sur le NAS via `docker load`.
+    # NE PAS construire sur l'Atom (pas de toolchain, trop lent).
+    image: fitcoach-web:latest
+    restart: unless-stopped
+    entrypoint: ["/app/entrypoint.sh"]
+    # 2 workers : l'Atom Cedarview n'a que 2 cœurs.
+    # timeout 120 : la génération IA (appel Claude) est plus lente sur ce CPU.
+    command:
+      ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120"]
+    env_file:
+      - .env.nas
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_DEBUG: "False"
+      DJANGO_USE_REDIS: "True"
+      DJANGO_USE_POSTGRES: "True"
+    volumes:
+      - ${NAS_DATA:-/volume1/docker/fitcoach}/media:/app/media
+    # Publié UNIQUEMENT sur la loopback de l'hôte : seul le reverse proxy DSM
+    # (qui tourne sur le NAS) peut l'atteindre. Il termine le HTTPS public et
+    # route vers ce port. Format hôte:conteneur → DSM ciblera localhost:8001.
+    ports:
+      - "127.0.0.1:8001:8000"
+    # Liste simple, SANS "condition" : compose v1 (format 3.x) ignore
+    # depends_on.condition. L'attente réelle de PostgreSQL est assurée par
+    # entrypoint.sh (boucle TCP), donc l'ordre de démarrage reste fiable.
+    depends_on:
+      - db
+      - redis
