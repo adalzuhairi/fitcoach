@@ -73,10 +73,10 @@ class Command(BaseCommand):
         for ex in a_traiter:
             if services.generate_exercise_guide(ex):
                 succes += 1
-                self.stdout.write(self.style.SUCCESS(f"  ✓ {ex.nom}"))
+                self.stdout.write(self.style.SUCCESS(f"  [OK]    {ex.nom}"))
             else:
                 echecs += 1
-                self.stdout.write(self.style.ERROR(f"  ✗ {ex.nom} (échec, voir logs)"))
+                self.stdout.write(self.style.ERROR(f"  [ECHEC] {ex.nom} (voir logs)"))
 
         self.stdout.write(
             self.style.SUCCESS(
