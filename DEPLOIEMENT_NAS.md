@@ -15,27 +15,25 @@ l'enveloppe de déploiement change (`docker-compose.nas.yml`, `.env.nas`).
 
 ---
 
-## 0. Pré-requis et vérification de la version Docker
+## 0. Pré-requis — version Docker du NAS
 
-Le paquet Docker de DSM 6.2 est ancien : il n'embarque **pas** `docker compose`
-v2 (avec espace). Tu utiliseras très probablement **`docker-compose` v1** (avec
-tiret). Vérifie en SSH **avant tout** :
+Vérifié sur ce DS713+ : **Docker 20.10.3** avec **Docker Compose v1 uniquement**
+(`docker-compose` 1.28.5, avec **tiret**). Il n'y a **pas** de `docker compose`
+v2 (avec espace).
+
+Conséquences appliquées dans ce guide :
+- Toutes les commandes utilisent **`docker-compose`** (avec tiret).
+- Le schéma `version: "3.7"` de `docker-compose.nas.yml` est supporté par
+  1.28.5 — rien à abaisser.
 
 ```bash
-docker --version
-docker-compose --version      # v1 (tiret) — probablement celui-ci
-docker compose version        # v2 (espace) — sûrement "command not found"
+# Pour mémoire, les commandes de vérification (SSH sur le NAS) :
+sudo docker --version            # Docker version 20.10.3
+sudo docker-compose --version    # docker-compose version 1.28.5
 ```
 
-- Si **`docker-compose` (tiret)** existe → utilise-le partout dans ce guide.
-- Si seul **`docker compose` (espace)** existe → remplace `docker-compose` par
-  `docker compose` dans les commandes.
-- Si **`docker-compose --version` est antérieur à 1.22**, abaisse la ligne
-  `version: "3.7"` du fichier `docker-compose.nas.yml` à `"3.3"`.
-
-> Si `docker-compose` n'est pas présent du tout, tu peux installer le binaire
-> v1 autonome dans `/usr/local/bin`, ou piloter la stack depuis l'interface
-> Docker de DSM. Ce guide suppose la ligne de commande.
+> Sur Synology, Docker requiert souvent `sudo`. Les commandes de ce guide
+> l'omettent pour la lisibilité ; ajoute `sudo` devant si nécessaire.
 
 ---
 
@@ -121,8 +119,9 @@ vi .env.nas                          # (ou éditer via File Station / éditeur D
 - `DJANGO_SECRET_KEY` — une vraie clé forte.
 - `POSTGRES_PASSWORD` — un mot de passe fort.
 - `ANTHROPIC_API_KEY` — ta clé Claude (sinon génération IA en mode fallback).
-- Le sous-domaine est déjà calé sur **`fit.infotechno.eu`** (ALLOWED_HOSTS,
-  SITE_DOMAIN, CSRF_TRUSTED_ORIGINS). Adapte si besoin.
+- L'hôte est déjà calé sur **`nasinfotechno.synology.me`** via le DDNS Synology,
+  port **`:8443`**. ⚠️ `SITE_DOMAIN` et `CSRF_TRUSTED_ORIGINS` incluent le port
+  (`nasinfotechno.synology.me:8443`) — ne le retire pas, sinon CSRF cassé.
 - `NAS_DATA=/volume1/docker/fitcoach` (chemin des bind mounts).
 
 ---
@@ -164,8 +163,8 @@ docker-compose -f docker-compose.nas.yml --env-file .env.nas \
 
 > La migration `0003_site_domain` règle le domaine allauth depuis
 > `DJANGO_SITE_DOMAIN` **au premier `migrate`**. Assure-toi que `.env.nas`
-> contient bien `fit.infotechno.eu` **avant** le premier `up`. (Sinon, corrige
-> ensuite le Site dans l'admin Django.)
+> contient bien `nasinfotechno.synology.me:8443` **avant** le premier `up`.
+> (Sinon, corrige ensuite le Site dans l'admin Django.)
 
 ---
 
@@ -177,11 +176,14 @@ inversé** (selon DSM : *Réseau → Reverse Proxy*), crée une règle :
 | Champ | Valeur |
 |---|---|
 | **Source — Protocole** | HTTPS |
-| **Source — Nom d'hôte** | `fit.infotechno.eu` |
-| **Source — Port** | `443` |
+| **Source — Nom d'hôte** | `nasinfotechno.synology.me` |
+| **Source — Port** | `8443` |
 | **Destination — Protocole** | HTTP |
 | **Destination — Nom d'hôte** | `localhost` |
 | **Destination — Port** | `8001` |
+
+> Le port **8443** doit être **ouvert/forwardé sur ta box** vers le NAS (c'est le
+> port public de FitCoach, distinct du `65001` de DSM).
 
 Dans l'onglet **En-têtes personnalisés**, ajoute (bouton *Créer → WebSocket*
 pour les deux premiers, puis manuellement) :
@@ -199,17 +201,19 @@ Host                $host
 
 ### Certificat Let's Encrypt via DSM
 
+Le DDNS Synology te donne un certificat natif **sans ligne de commande** :
+
 **Panneau de configuration → Sécurité → Certificat → Ajouter → Obtenir un
 certificat de Let's Encrypt** :
-- Nom de domaine : `fit.infotechno.eu`
+- Nom de domaine : `nasinfotechno.synology.me`
 - E-mail valide
 - Puis **Configurer** le certificat pour qu'il serve le service *Proxy inversé*
-  `fit.infotechno.eu`.
+  `nasinfotechno.synology.me:8443`.
 
-> Le DNS `fit.infotechno.eu` doit pointer vers l'IP publique du NAS et le port
-> 443 doit être routé/ouvert vers le NAS pour la validation Let's Encrypt.
+> Comme le domaine `synology.me` est géré par Synology, la validation Let's
+> Encrypt fonctionne nativement — pas besoin de toucher à un DNS externe.
 
-Ouvre ensuite **https://fit.infotechno.eu** 🎉
+Ouvre ensuite **https://nasinfotechno.synology.me:8443** 🎉
 
 ---
 
@@ -227,8 +231,9 @@ Ouvre ensuite **https://fit.infotechno.eu** 🎉
 - **Statiques absents (CSS cassé)** → `collectstatic` est lancé par
   l'entrypoint ; en cas de doute, relance-le :
   `... exec web python manage.py collectstatic --noinput`.
-- **Erreur CSRF sur les formulaires** → vérifie que `fit.infotechno.eu` figure
-  bien dans `DJANGO_CSRF_TRUSTED_ORIGINS` (avec `https://`).
+- **Erreur CSRF sur les formulaires** → vérifie que
+  `https://nasinfotechno.synology.me:8443` figure bien dans
+  `DJANGO_CSRF_TRUSTED_ORIGINS` — **avec `https://` ET le port `:8443`**.
 
 ---
 

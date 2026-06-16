@@ -18,8 +18,8 @@
 #   - gunicorn : 2 workers (Atom bi-cœur) + timeout 120 (génération IA plus
 #     lente sur ce CPU de 2013).
 
-# Format compatible docker-compose v1 (DSM 6.2). Si ton `docker-compose
-# --version` est antérieur à 1.22, abaisse cette valeur à "3.3".
+# Format compatible docker-compose v1 (DSM 6.2). Confirmé sur ce NAS :
+# docker-compose 1.28.5 → le schéma "3.7" est supporté.
 version: "3.7"
 
 services:
