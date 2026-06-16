@@ -30,6 +30,7 @@ Les pages applicatives remplissent {% block content %}.
       {% include "_nav_link.html" with url="tracking:dashboard" label="Tableau de bord" icon="layout-dashboard" %}
       {% include "_nav_link.html" with url="training:programme" label="Mon programme" icon="dumbbell" %}
       {% include "_nav_link.html" with url="nutrition:ma_nutrition" label="Ma nutrition" icon="utensils" match="nutrition:ma_nutrition nutrition:recettes_repas nutrition:generer_recettes" %}
+      {% include "_nav_link.html" with url="supplements:complements" label="Compléments" icon="pill" %}
       {% include "_nav_link.html" with url="training:bibliotheque" label="Exercices" icon="book-open" match="training:bibliotheque training:exercice" %}
       {% include "_nav_link.html" with url="tracking:progression" label="Progression" icon="trending-up" %}
       {% include "_nav_link.html" with url="tracking:mesures" label="Mesures" icon="ruler" match="tracking:mesures tracking:modifier_mesure tracking:supprimer_mesure" %}

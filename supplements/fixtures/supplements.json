@@ -1,0 +1,209 @@
+[
+  {
+    "model": "supplements.supplement",
+    "pk": 1,
+    "fields": {
+      "nom": "Créatine monohydrate",
+      "nom_en": "Creatine monohydrate",
+      "categorie": "creatine",
+      "description": "Le complément le mieux étudié en musculation. Aide à régénérer l'ATP lors des efforts courts et intenses.",
+      "benefices": "Augmente la force et la puissance sur les efforts courts et répétés, et soutient le gain de masse musculaire à l'entraînement.",
+      "dosage_recommande": "3 à 5 g par jour, tous les jours (y compris les jours de repos)",
+      "moment_prise": "À n'importe quel moment ; la régularité compte plus que le timing.",
+      "niveau_preuve": "eleve",
+      "contre_indications": "Prudence en cas de maladie rénale préexistante ; bien s'hydrater. Demander un avis médical en cas de doute.",
+      "exclu_pour": [],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 2,
+    "fields": {
+      "nom": "Protéine whey",
+      "nom_en": "Whey protein",
+      "categorie": "proteine",
+      "description": "Protéine issue du lait, à digestion rapide. Un moyen pratique d'atteindre son apport quotidien en protéines.",
+      "benefices": "Aide à atteindre l'apport protéique quotidien et soutient la récupération et le maintien ou le gain musculaire. N'est utile que si l'alimentation manque de protéines.",
+      "dosage_recommande": "20 à 40 g par portion, selon les besoins",
+      "moment_prise": "En collation ou autour de l'entraînement.",
+      "niveau_preuve": "eleve",
+      "contre_indications": "Issue du lait : à éviter en cas d'allergie aux protéines de lait ; préférer un isolat ou une protéine végétale en cas d'intolérance au lactose.",
+      "exclu_pour": ["vegan"],
+      "priorite": 1,
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 3,
+    "fields": {
+      "nom": "Protéine végétale (pois / riz)",
+      "nom_en": "Plant protein",
+      "categorie": "proteine",
+      "description": "Alternative végétale à la whey, souvent à base de pois et de riz pour un profil d'acides aminés complet.",
+      "benefices": "Permet de compléter l'apport en protéines avec une source 100 % végétale, utile en régime végétarien ou vegan.",
+      "dosage_recommande": "25 à 40 g par portion, selon les besoins",
+      "moment_prise": "En collation ou autour de l'entraînement.",
+      "niveau_preuve": "eleve",
+      "contre_indications": "Vérifier l'absence d'allergènes (soja selon les marques).",
+      "exclu_pour": [],
+      "priorite": 2,
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 4,
+    "fields": {
+      "nom": "Caséine",
+      "nom_en": "Casein",
+      "categorie": "proteine",
+      "description": "Protéine du lait à digestion lente, libérant les acides aminés progressivement.",
+      "benefices": "Apport protéique prolongé, parfois utilisée en collation du soir. Avantage marginal par rapport à une alimentation déjà riche en protéines.",
+      "dosage_recommande": "20 à 40 g par portion",
+      "moment_prise": "En collation, notamment avant une longue période sans repas.",
+      "niveau_preuve": "modere",
+      "contre_indications": "Issue du lait : à éviter en cas d'allergie aux protéines de lait.",
+      "exclu_pour": ["vegan"],
+      "priorite": 3,
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 5,
+    "fields": {
+      "nom": "Gainer",
+      "nom_en": "Mass gainer",
+      "categorie": "gainer",
+      "description": "Mélange riche en glucides et en protéines, conçu pour apporter beaucoup de calories rapidement.",
+      "benefices": "Aide à atteindre un surplus calorique en prise de masse lorsque l'appétit est limité. Inutile si les calories sont déjà couvertes par l'alimentation.",
+      "dosage_recommande": "Selon les calories à combler ; commencer par une demi-portion.",
+      "moment_prise": "En collation entre les repas.",
+      "niveau_preuve": "modere",
+      "contre_indications": "Souvent à base de lait (whey). Beaucoup de sucres ajoutés : à éviter en sèche.",
+      "exclu_pour": ["vegan"],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 6,
+    "fields": {
+      "nom": "Oméga-3 (EPA / DHA)",
+      "nom_en": "Omega-3 fish oil",
+      "categorie": "omega3",
+      "description": "Acides gras essentiels issus des poissons gras. Pertinent surtout si l'on consomme peu de poisson.",
+      "benefices": "Soutient la santé cardiovasculaire et peut aider au confort articulaire. Effet sur la performance limité.",
+      "dosage_recommande": "1 à 2 g d'EPA + DHA combinés par jour",
+      "moment_prise": "Avec un repas contenant des matières grasses.",
+      "niveau_preuve": "modere",
+      "contre_indications": "Prudence en cas de traitement anticoagulant. Une version à base d'algues existe pour les régimes végétaux.",
+      "exclu_pour": ["vegan", "vegetarien"],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 7,
+    "fields": {
+      "nom": "Vitamine D3",
+      "nom_en": "Vitamin D3",
+      "categorie": "vitamines_mineraux",
+      "description": "Vitamine dont le statut est souvent bas en automne et en hiver, faute d'ensoleillement.",
+      "benefices": "Soutient la santé osseuse et le fonctionnement immunitaire en cas de déficit. À privilégier si l'exposition au soleil est faible.",
+      "dosage_recommande": "1000 à 2000 UI par jour selon le statut (idéalement guidé par une prise de sang)",
+      "moment_prise": "Avec un repas contenant des matières grasses.",
+      "niveau_preuve": "modere",
+      "contre_indications": "Éviter le surdosage prolongé (risque d'excès de calcium). Un dosage sanguin permet d'ajuster.",
+      "exclu_pour": [],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 8,
+    "fields": {
+      "nom": "Magnésium",
+      "nom_en": "Magnesium",
+      "categorie": "vitamines_mineraux",
+      "description": "Minéral impliqué dans la fonction musculaire et nerveuse. Les apports alimentaires sont parfois insuffisants.",
+      "benefices": "Comble un déficit éventuel ; peut aider en cas d'apport alimentaire faible. Pas d'effet « boost » sur la performance chez les personnes non carencées.",
+      "dosage_recommande": "200 à 400 mg par jour (le bisglycinate est bien toléré)",
+      "moment_prise": "Le soir, avec un repas.",
+      "niveau_preuve": "modere",
+      "contre_indications": "Un excès peut provoquer des troubles digestifs (effet laxatif).",
+      "exclu_pour": [],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 9,
+    "fields": {
+      "nom": "Multivitamines",
+      "nom_en": "Multivitamin",
+      "categorie": "vitamines_mineraux",
+      "description": "Mélange de vitamines et minéraux servant de « filet de sécurité » nutritionnel.",
+      "benefices": "Peut combler de petites lacunes si l'alimentation est déséquilibrée. Bénéfice limité voire nul lorsque l'alimentation est variée.",
+      "dosage_recommande": "1 portion par jour selon l'étiquette",
+      "moment_prise": "Avec un repas.",
+      "niveau_preuve": "faible",
+      "contre_indications": "Ne remplace pas une alimentation équilibrée. Éviter de cumuler plusieurs sources de la même vitamine.",
+      "exclu_pour": [],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 10,
+    "fields": {
+      "nom": "Caféine",
+      "nom_en": "Caffeine",
+      "categorie": "pre_workout",
+      "description": "Stimulant le plus étudié pour la performance, présent dans la plupart des pré-workouts.",
+      "benefices": "Améliore la vigilance, la perception de l'effort et la performance à l'entraînement.",
+      "dosage_recommande": "3 à 6 mg par kg de poids de corps, environ 30 à 60 min avant l'effort",
+      "moment_prise": "Avant l'entraînement ; éviter en fin de journée.",
+      "niveau_preuve": "eleve",
+      "contre_indications": "À éviter en cas de troubles cardiaques, d'hypertension ou d'anxiété, et chez les personnes sensibles. Perturbe le sommeil si pris tard.",
+      "exclu_pour": [],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 11,
+    "fields": {
+      "nom": "Bêta-alanine",
+      "nom_en": "Beta-alanine",
+      "categorie": "pre_workout",
+      "description": "Acide aminé qui augmente les réserves musculaires de carnosine, tampon de l'acidité à l'effort.",
+      "benefices": "Peut améliorer l'endurance musculaire sur les efforts intenses de 1 à 4 minutes. Effet modeste et spécifique.",
+      "dosage_recommande": "3 à 5 g par jour, en continu (effet cumulatif sur plusieurs semaines)",
+      "moment_prise": "À n'importe quel moment ; la régularité prime.",
+      "niveau_preuve": "modere",
+      "contre_indications": "Provoque souvent des picotements cutanés bénins (paresthésie) ; fractionner les doses les atténue.",
+      "exclu_pour": [],
+      "actif": true
+    }
+  },
+  {
+    "model": "supplements.supplement",
+    "pk": 12,
+    "fields": {
+      "nom": "BCAA",
+      "nom_en": "Branched-chain amino acids",
+      "categorie": "acides_amines",
+      "description": "Acides aminés ramifiés (leucine, isoleucine, valine), très commercialisés.",
+      "benefices": "Intérêt très limité lorsque l'apport quotidien en protéines est déjà suffisant : une protéine complète (whey, végétale) couvre déjà ces acides aminés.",
+      "dosage_recommande": "Généralement superflu si l'apport protéique est atteint.",
+      "moment_prise": "Sans réel intérêt démontré dans un régime riche en protéines.",
+      "niveau_preuve": "faible",
+      "contre_indications": "Dépense souvent inutile : privilégier d'abord un apport protéique suffisant.",
+      "exclu_pour": [],
+      "actif": true
+    }
+  }
+]

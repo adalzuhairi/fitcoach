@@ -1,0 +1,78 @@
+{% extends "app_base.html" %}
+{% block title %}Compléments — FitCoach{% endblock %}
+
+{% block content %}
+  <div class="mb-2 flex items-center justify-between">
+    <a href="{% url 'nutrition:ma_nutrition' %}" class="text-sm text-muted transition hover:text-text">← Ma nutrition</a>
+    <a href="{% url 'accounts:profil' %}" class="text-sm font-medium link-accent">Mon profil →</a>
+  </div>
+
+  <h1 class="text-2xl font-bold text-text">Compléments conseillés</h1>
+  <p class="mt-1 text-sm text-muted">Adaptés à ton objectif · <span class="font-medium text-text">{{ objectif_label }}</span></p>
+
+  <!-- Avertissement (responsabilité) : visible, pas un texte gris en bas de page. -->
+  <div class="card mt-4 border-amber-500/40 bg-amber-500/10 p-4">
+    <div class="flex gap-3">
+      <i data-lucide="alert-triangle" class="mt-0.5 h-5 w-5 shrink-0 text-amber-400" aria-hidden="true"></i>
+      <div class="text-sm text-text">
+        <p class="font-semibold">Les compléments ne sont pas obligatoires.</p>
+        <p class="mt-1 text-muted">
+          Une alimentation équilibrée et adaptée à tes besoins prime toujours.
+          Demande l'avis d'un médecin ou d'un professionnel de santé avant d'en prendre,
+          surtout en cas de problème de santé (certains ont de réelles contre-indications).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if recommandations %}
+  <div class="mt-4 grid gap-3 sm:grid-cols-2">
+    {% for s in recommandations %}
+    <div class="card p-5">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="font-semibold text-text">{{ s.nom }}</p>
+          <p class="text-xs text-muted">{{ s.get_categorie_display }}</p>
+        </div>
+        {% if s.niveau_preuve == "eleve" %}
+          <span class="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400 ring-1 ring-emerald-500/30">{{ s.get_niveau_preuve_display }}</span>
+        {% elif s.niveau_preuve == "modere" %}
+          <span class="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400 ring-1 ring-amber-500/30">{{ s.get_niveau_preuve_display }}</span>
+        {% else %}
+          <span class="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-muted ring-1 ring-border">{{ s.get_niveau_preuve_display }}</span>
+        {% endif %}
+      </div>
+
+      {% if s.benefices %}<p class="mt-3 text-sm text-muted">{{ s.benefices }}</p>{% endif %}
+
+      <dl class="mt-3 space-y-1.5 text-xs">
+        {% if s.dosage_recommande %}
+        <div class="flex gap-2">
+          <dt class="shrink-0 font-medium text-text">Dosage</dt>
+          <dd class="text-muted">{{ s.dosage_recommande }}</dd>
+        </div>
+        {% endif %}
+        {% if s.moment_prise %}
+        <div class="flex gap-2">
+          <dt class="shrink-0 font-medium text-text">Quand</dt>
+          <dd class="text-muted">{{ s.moment_prise }}</dd>
+        </div>
+        {% endif %}
+        {% if s.contre_indications %}
+        <div class="flex gap-2">
+          <dt class="shrink-0 font-medium text-amber-400">Prudence</dt>
+          <dd class="text-muted">{{ s.contre_indications }}</dd>
+        </div>
+        {% endif %}
+      </dl>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card mt-4 p-5">
+    <p class="text-sm text-muted">
+      Aucun complément à conseiller pour le moment selon ton objectif et tes préférences.
+    </p>
+  </div>
+  {% endif %}
+{% endblock %}
