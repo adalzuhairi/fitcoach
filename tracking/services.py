@@ -235,40 +235,110 @@ def historique_mesures(user, limit=None):
     return serie
 
 
+def substitutions_map(user):
+    """Carte des substitutions de l'utilisateur : (log_id, we_id) → exercise_id.
+
+    Permet d'attribuer chaque série loggée à l'exercice RÉELLEMENT réalisé : si
+    un créneau a été substitué ce jour-là, la clé renvoie l'id du substitut,
+    sinon l'absence de clé signifie « l'exercice du programme ». Indispensable
+    pour que progression et suggestions ne mélangent pas deux mouvements.
+    """
+    from tracking.models import SubstitutionSeance
+
+    return {
+        (s.workout_log_id, s.workout_exercise_id): s.exercise_substitut_id
+        for s in SubstitutionSeance.objects.filter(workout_log__user=user)
+    }
+
+
+def substituer_exercice(workout_log, workout_exercise, exercise_substitut):
+    """Trace une substitution d'exercice pour la séance du jour (option B).
+
+    Le programme reste intact : seule la séance loggée porte la substitution.
+    Les séries déjà enregistrées sur ce créneau sont supprimées — elles
+    portaient sur l'ancien mouvement et ne s'appliquent pas au substitut.
+    Idempotent : re-substituer met simplement à jour la cible.
+    """
+    from tracking.models import SetLog, SubstitutionSeance
+
+    SetLog.objects.filter(
+        workout_log=workout_log, workout_exercise=workout_exercise
+    ).delete()
+    sub, _ = SubstitutionSeance.objects.update_or_create(
+        workout_log=workout_log,
+        workout_exercise=workout_exercise,
+        defaults={"exercise_substitut": exercise_substitut},
+    )
+    return sub
+
+
+def annuler_substitution(workout_log, workout_exercise):
+    """Annule la substitution du jour (undo) : on repart de l'exercice du programme.
+
+    Supprime aussi les séries loggées sur le substitut, pour la même raison que
+    `substituer_exercice` : elles portaient sur un autre mouvement.
+    """
+    from tracking.models import SetLog, SubstitutionSeance
+
+    SetLog.objects.filter(
+        workout_log=workout_log, workout_exercise=workout_exercise
+    ).delete()
+    SubstitutionSeance.objects.filter(
+        workout_log=workout_log, workout_exercise=workout_exercise
+    ).delete()
+
+
 def exercices_logges(user):
-    """Exercices pour lesquels l'utilisateur a enregistré au moins une série."""
+    """Exercices pour lesquels l'utilisateur a enregistré au moins une série.
+
+    Attribue chaque série à l'exercice EFFECTIF (substitution prise en compte) :
+    une série faite sur un substitut compte pour le substitut, pas pour
+    l'exercice du programme.
+    """
     from training.models import Exercise
     from tracking.models import SetLog
 
-    ids = (
-        SetLog.objects.filter(workout_log__user=user)
-        .values_list("workout_exercise__exercise", flat=True)
-        .distinct()
-    )
+    subs = substitutions_map(user)
+    ids = {
+        subs.get((log_id, we_id), exercise_id)
+        for log_id, we_id, exercise_id in SetLog.objects.filter(
+            workout_log__user=user
+        ).values_list(
+            "workout_log_id", "workout_exercise_id", "workout_exercise__exercise_id"
+        )
+    }
     return list(Exercise.objects.filter(id__in=ids).order_by("nom"))
 
 
 def progression_charge(user, exercise):
     """Charge maximale par séance (date) pour un exercice, ordre chronologique.
 
-    Agrège toutes les séries de l'exercice (quelle que soit la journée/le
-    programme) : un point = la charge la plus lourde soulevée ce jour-là.
+    Agrège toutes les séries dont l'exercice EFFECTIF est `exercise` (un jour
+    substitué bascule ses séries vers le substitut) : un point = la charge la
+    plus lourde soulevée ce jour-là.
     """
-    from django.db.models import Max
-
     from tracking.models import SetLog
 
-    lignes = (
-        SetLog.objects.filter(
-            workout_log__user=user, workout_exercise__exercise=exercise
-        )
-        .values("workout_log__date")
-        .annotate(charge_max=Max("charge_kg"))
-        .order_by("workout_log__date")
+    subs = substitutions_map(user)
+    par_date = {}
+    rows = SetLog.objects.filter(workout_log__user=user).values_list(
+        "workout_log_id",
+        "workout_exercise_id",
+        "workout_exercise__exercise_id",
+        "workout_log__date",
+        "charge_kg",
     )
+    for log_id, we_id, exercise_id, date, charge in rows:
+        effectif = subs.get((log_id, we_id), exercise_id)
+        if effectif != exercise.id:
+            continue
+        charge = float(charge)
+        if date not in par_date or charge > par_date[date]:
+            par_date[date] = charge
+
     return [
-        {"date": ligne["workout_log__date"].isoformat(), "charge": float(ligne["charge_max"])}
-        for ligne in lignes
+        {"date": date.isoformat(), "charge": charge}
+        for date, charge in sorted(par_date.items())
     ]
 
 

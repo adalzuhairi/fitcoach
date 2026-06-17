@@ -277,6 +277,66 @@ class ProgressionChargeTests(ProgressionTestBase):
         self.assertEqual(services.progression_charge(self.user, self.dev), [])
 
 
+class SubstitutionServiceTests(ProgressionTestBase):
+    """Substitution de séance (option B) : trace en base, intégrité des données."""
+
+    def test_substituer_trace_et_vide_les_setlogs_du_creneau(self):
+        log = self._log(datetime.date(2026, 6, 14), self.j1)
+        self._set(log, self.we_dev, 1, 10, 60)
+        services.substituer_exercice(log, self.we_dev, self.squat)
+        from tracking.models import SubstitutionSeance
+
+        self.assertTrue(
+            SubstitutionSeance.objects.filter(
+                workout_log=log, workout_exercise=self.we_dev, exercise_substitut=self.squat
+            ).exists()
+        )
+        # Les séries de l'ancien mouvement sont effacées (elles ne s'y appliquent plus).
+        self.assertEqual(
+            SetLog.objects.filter(workout_log=log, workout_exercise=self.we_dev).count(), 0
+        )
+
+    def test_substituer_idempotent(self):
+        log = self._log(datetime.date(2026, 6, 14), self.j1)
+        services.substituer_exercice(log, self.we_dev, self.squat)
+        services.substituer_exercice(log, self.we_dev, self.dev)  # re-substitution
+        from tracking.models import SubstitutionSeance
+
+        subs = SubstitutionSeance.objects.filter(workout_log=log, workout_exercise=self.we_dev)
+        self.assertEqual(subs.count(), 1)
+        self.assertEqual(subs.first().exercise_substitut, self.dev)
+
+    def test_annuler_supprime_la_trace_et_les_setlogs(self):
+        log = self._log(datetime.date(2026, 6, 14), self.j1)
+        services.substituer_exercice(log, self.we_dev, self.squat)
+        self._set(log, self.we_dev, 1, 5, 80)  # série faite sur le substitut
+        services.annuler_substitution(log, self.we_dev)
+        from tracking.models import SubstitutionSeance
+
+        self.assertFalse(SubstitutionSeance.objects.filter(workout_log=log).exists())
+        self.assertEqual(
+            SetLog.objects.filter(workout_log=log, workout_exercise=self.we_dev).count(), 0
+        )
+
+    def test_progression_attribuee_a_lexercice_effectif(self):
+        # Le créneau Développé est substitué par Squat ce jour-là : les séries
+        # comptent pour Squat (effectif), pas pour Développé (programme).
+        log = self._log(datetime.date(2026, 6, 14), self.j1)
+        services.substituer_exercice(log, self.we_dev, self.squat)
+        self._set(log, self.we_dev, 1, 5, 90)
+        self.assertEqual(services.progression_charge(self.user, self.dev), [])
+        self.assertEqual(
+            services.progression_charge(self.user, self.squat),
+            [{"date": "2026-06-14", "charge": 90.0}],
+        )
+
+    def test_exercices_logges_compte_le_substitut(self):
+        log = self._log(datetime.date(2026, 6, 14), self.j1)
+        services.substituer_exercice(log, self.we_dev, self.squat)
+        self._set(log, self.we_dev, 1, 5, 90)
+        self.assertEqual(services.exercices_logges(self.user), [self.squat])
+
+
 class VolumeHebdomadaireTests(ProgressionTestBase):
     def test_agregation_par_semaine(self):
         # Mercredi de référence : lundi courant = 2026-06-15.

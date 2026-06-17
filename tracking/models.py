@@ -71,6 +71,55 @@ class SetLog(models.Model):
         return f"Série {self.serie_numero} — {self.repetitions_faites}x{self.charge_kg}kg"
 
 
+class SubstitutionSeance(models.Model):
+    """Substitution ponctuelle d'un exercice pendant une séance (option B).
+
+    Trace qu'un créneau du programme (`workout_exercise`) a été remplacé par un
+    autre exercice (`exercise_substitut`) le temps d'UNE séance (`workout_log`).
+    Le programme n'est jamais modifié : la prochaine séance repart du plan
+    initial. Une seule substitution par créneau et par séance ; annuler le
+    remplacement (undo) revient simplement à supprimer cette ligne.
+
+    On trace en base plutôt que de remplacer « à l'affichage » car les `SetLog`
+    pointent vers le créneau (`workout_exercise`), pas vers l'exercice : sans
+    cette trace, les séries faites sur le substitut seraient comptées comme
+    faites sur l'exercice du programme et fausseraient progression et
+    suggestions de charge.
+    """
+
+    workout_log = models.ForeignKey(
+        WorkoutLog,
+        on_delete=models.CASCADE,
+        related_name="substitutions",
+        verbose_name="séance",
+    )
+    workout_exercise = models.ForeignKey(
+        WorkoutExercise,
+        on_delete=models.CASCADE,
+        related_name="substitutions",
+        verbose_name="créneau remplacé",
+    )
+    exercise_substitut = models.ForeignKey(
+        "training.Exercise",
+        on_delete=models.PROTECT,
+        related_name="substitutions",
+        verbose_name="exercice de remplacement",
+    )
+    cree_le = models.DateTimeField("créé le", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "substitution de séance"
+        verbose_name_plural = "substitutions de séance"
+        ordering = ["-cree_le"]
+        unique_together = [("workout_log", "workout_exercise")]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.workout_exercise.exercise} → {self.exercise_substitut} "
+            f"({self.workout_log.date})"
+        )
+
+
 class WaterIntake(models.Model):
     """Consommation d'eau cumulée d'un utilisateur sur une journée.
 

@@ -370,6 +370,265 @@ class FicheExerciceGuideTests(TestCase):
         self.assertContains(resp, "Muscles ciblés")
 
 
+class AlternativesExerciceTests(TestCase):
+    """Cascade d'alternatives pour une substitution (même muscle, repli)."""
+
+    def setUp(self):
+        from accounts.models import Materiel, Niveau, Objectif, Profile
+
+        self.user = User.objects.create_user("ahmed", password="x")
+        self.profile = Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+            materiel=Materiel.HALTERES_MAISON, niveau=Niveau.DEBUTANT,
+        )
+        self.program = Program.objects.create(
+            user=self.user, nom="Prog", objectif="prise_de_masse",
+            date_debut=datetime.date.today(), split=Split.HALF_BODY,
+        )
+        self.day = WorkoutDay.objects.create(program=self.program, jour_numero=1, nom="Push")
+        self.dev = Exercise.objects.create(
+            nom="Développé couché barre", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE, materiel_requis=Materiel.SALLE_COMPLETE,
+            niveau_minimum=Niveau.DEBUTANT,
+        )
+        self.we = WorkoutExercise.objects.create(
+            workout_day=self.day, exercise=self.dev, series=3,
+            repetitions="8-12", temps_repos_secondes=120,
+        )
+        self.pompes = Exercise.objects.create(
+            nom="Pompes", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE, materiel_requis=Materiel.POIDS_DU_CORPS,
+            niveau_minimum=Niveau.DEBUTANT,
+        )
+        self.dev_halt = Exercise.objects.create(
+            nom="Développé haltères", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE, materiel_requis=Materiel.HALTERES_MAISON,
+            niveau_minimum=Niveau.DEBUTANT,
+        )
+        self.dev_machine = Exercise.objects.create(
+            nom="Développé machine", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.ISOLATION, materiel_requis=Materiel.SALLE_COMPLETE,
+            niveau_minimum=Niveau.AVANCE,
+        )
+
+    def test_exclut_exercice_courant(self):
+        noms = [a["exercise"].nom for a in services.alternatives_exercice(self.we, self.profile)]
+        self.assertNotIn(self.dev.nom, noms)
+
+    def test_etape1_materiel_compatible_et_niveau(self):
+        res = services.alternatives_exercice(self.we, self.profile)
+        noms = {a["exercise"].nom for a in res}
+        # Haltères maison + débutant : pompes (poids du corps) et dév. haltères ;
+        # le dév. machine (salle + avancé) est exclu à l'étape 1.
+        self.assertEqual(noms, {"Pompes", "Développé haltères"})
+        self.assertTrue(all(not a["materiel_different"] for a in res))
+
+    def test_repli_materiel_avec_mention(self):
+        from accounts.models import Materiel
+
+        # Poids du corps, et aucune option en poids du corps dans le groupe.
+        self.pompes.delete()
+        self.profile.materiel = Materiel.POIDS_DU_CORPS
+        self.profile.save()
+        res = services.alternatives_exercice(self.we, self.profile)
+        self.assertTrue(res)  # ne laisse jamais l'utilisateur sans option
+        self.assertTrue(all(a["materiel_different"] for a in res))
+
+    def test_exclut_les_exercices_a_valider(self):
+        self.dev_halt.a_valider = True
+        self.dev_halt.save()
+        noms = [a["exercise"].nom for a in services.alternatives_exercice(self.we, self.profile)]
+        self.assertNotIn("Développé haltères", noms)
+
+    def test_vide_si_aucun_autre_exercice_du_groupe(self):
+        seul = Exercise.objects.create(
+            nom="Mollets debout", groupe_musculaire=GroupeMusculaire.MOLLETS,
+            type=TypeExercice.ISOLATION,
+        )
+        we = WorkoutExercise.objects.create(
+            workout_day=self.day, exercise=seul, series=3,
+            repetitions="12-15", temps_repos_secondes=60,
+        )
+        self.assertEqual(services.alternatives_exercice(we, self.profile), [])
+
+
+class SuggestionChargeSubstitutTests(TestCase):
+    """suggestion_charge tient compte du substitut et de l'historique effectif."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("ahmed", password="x")
+        self.program = Program.objects.create(
+            user=self.user, nom="Prog", objectif="prise_de_masse",
+            date_debut=datetime.date.today(), split=Split.HALF_BODY,
+        )
+        self.day = WorkoutDay.objects.create(program=self.program, jour_numero=1, nom="Push")
+        self.dev = Exercise.objects.create(
+            nom="Développé couché", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE,
+        )
+        self.dev_halt = Exercise.objects.create(
+            nom="Développé haltères", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE,
+        )
+        self.we = WorkoutExercise.objects.create(
+            workout_day=self.day, exercise=self.dev, series=3,
+            repetitions="8-12", temps_repos_secondes=120,
+        )
+
+    def _seance_substituee(self, jour, reps, charge):
+        from tracking import services as tracking_services
+
+        log = WorkoutLog.objects.create(user=self.user, workout_day=self.day, date=jour)
+        tracking_services.substituer_exercice(log, self.we, self.dev_halt)
+        for i in range(1, 4):
+            SetLog.objects.create(
+                workout_log=log, workout_exercise=self.we, serie_numero=i,
+                repetitions_faites=reps, charge_kg=Decimal(str(charge)),
+            )
+        return log
+
+    def test_substitut_sans_historique_pas_de_suggestion(self):
+        self.assertIsNone(
+            services.suggestion_charge(self.we, self.user, exercise_substitut=self.dev_halt)
+        )
+
+    def test_suggestion_substitut_basee_sur_son_historique(self):
+        # Séance antérieure réalisée sur le substitut : toutes séries à 12 (haut
+        # de 8-12) → +2,5 kg (pectoraux), d'après l'historique du SUBSTITUT.
+        self._seance_substituee(datetime.date(2026, 6, 1), reps=12, charge="20")
+        self.assertEqual(
+            services.suggestion_charge(self.we, self.user, exercise_substitut=self.dev_halt),
+            Decimal("22.5"),
+        )
+
+    def test_creneau_ignore_les_seances_substituees(self):
+        # L'exercice du programme n'hérite pas des charges faites sur le substitut.
+        self._seance_substituee(datetime.date(2026, 6, 1), reps=12, charge="20")
+        self.assertIsNone(services.suggestion_charge(self.we, self.user))
+
+
+class SubstitutionEndpointsTests(TestCase):
+    """Endpoints de substitution : sécurité, programme intact, undo."""
+
+    def setUp(self):
+        from accounts.models import Materiel, Niveau, Objectif, Profile
+
+        self.user = User.objects.create_user("ahmed", password="x")
+        Profile.objects.create(
+            user=self.user, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+            materiel=Materiel.HALTERES_MAISON, niveau=Niveau.DEBUTANT,
+        )
+        self.client.force_login(self.user)
+        self.program = Program.objects.create(
+            user=self.user, nom="Prog", objectif="prise_de_masse",
+            date_debut=datetime.date.today(), split=Split.HALF_BODY,
+        )
+        self.day = WorkoutDay.objects.create(program=self.program, jour_numero=1, nom="Push")
+        self.dev = Exercise.objects.create(
+            nom="Développé couché barre", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE, materiel_requis=Materiel.SALLE_COMPLETE,
+            niveau_minimum=Niveau.DEBUTANT,
+        )
+        self.we = WorkoutExercise.objects.create(
+            workout_day=self.day, exercise=self.dev, series=3,
+            repetitions="8-12", temps_repos_secondes=120,
+        )
+        self.dev_halt = Exercise.objects.create(
+            nom="Développé haltères", groupe_musculaire=GroupeMusculaire.PECTORAUX,
+            type=TypeExercice.COMPOSE, materiel_requis=Materiel.HALTERES_MAISON,
+            niveau_minimum=Niveau.DEBUTANT,
+        )
+        self.dos = Exercise.objects.create(  # autre muscle : jamais une alternative
+            nom="Rowing", groupe_musculaire=GroupeMusculaire.DOS, type=TypeExercice.COMPOSE,
+        )
+        self.log = services.get_or_create_seance_du_jour(self.user, self.day)
+
+    def _post(self, name, payload):
+        return self.client.post(
+            reverse(name), data=json.dumps(payload), content_type="application/json"
+        )
+
+    def test_alternatives_endpoint_liste_le_meme_muscle(self):
+        resp = self.client.get(reverse("training:alternatives", args=[self.we.id]))
+        self.assertEqual(resp.status_code, 200)
+        noms = [a["nom"] for a in resp.json()["alternatives"]]
+        self.assertIn("Développé haltères", noms)
+        self.assertNotIn("Rowing", noms)  # autre groupe musculaire
+
+    def test_alternatives_endpoint_autre_user_404(self):
+        from accounts.models import Objectif, Profile
+
+        autre = User.objects.create_user("autre", password="x")
+        Profile.objects.create(
+            user=autre, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        self.client.force_login(autre)
+        resp = self.client.get(reverse("training:alternatives", args=[self.we.id]))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_substituer_ok(self):
+        resp = self._post("training:substituer", {
+            "logId": self.log.id, "weId": self.we.id, "exerciseId": self.dev_halt.id,
+        })
+        self.assertEqual(resp.status_code, 200)
+        bloc = resp.json()["exercice"]
+        self.assertEqual(bloc["nom"], "Développé haltères")
+        self.assertEqual(bloc["substitution"]["original"], "Développé couché barre")
+        from tracking.models import SubstitutionSeance
+
+        self.assertTrue(SubstitutionSeance.objects.filter(
+            workout_log=self.log, workout_exercise=self.we).exists())
+
+    def test_substituer_laisse_le_programme_intact(self):
+        self._post("training:substituer", {
+            "logId": self.log.id, "weId": self.we.id, "exerciseId": self.dev_halt.id,
+        })
+        # Le créneau du programme pointe toujours vers l'exercice d'origine.
+        self.we.refresh_from_db()
+        self.assertEqual(self.we.exercise, self.dev)
+
+    def test_substituer_rejette_exercice_non_alternatif(self):
+        # Un exercice d'un autre muscle n'est pas une alternative légitime.
+        resp = self._post("training:substituer", {
+            "logId": self.log.id, "weId": self.we.id, "exerciseId": self.dos.id,
+        })
+        self.assertEqual(resp.status_code, 400)
+        from tracking.models import SubstitutionSeance
+
+        self.assertFalse(SubstitutionSeance.objects.filter(workout_log=self.log).exists())
+
+    def test_substituer_autre_user_404(self):
+        autre = User.objects.create_user("autre", password="x")
+        from accounts.models import Objectif, Profile
+
+        Profile.objects.create(
+            user=autre, sexe="H", date_naissance=datetime.date(2000, 1, 1),
+            taille_cm=180, poids_kg=Decimal("80"), objectif=Objectif.MAINTIEN,
+        )
+        self.client.force_login(autre)
+        resp = self._post("training:substituer", {
+            "logId": self.log.id, "weId": self.we.id, "exerciseId": self.dev_halt.id,
+        })
+        self.assertEqual(resp.status_code, 404)
+
+    def test_annuler_substitution(self):
+        self._post("training:substituer", {
+            "logId": self.log.id, "weId": self.we.id, "exerciseId": self.dev_halt.id,
+        })
+        resp = self._post("training:annuler_substitution", {
+            "logId": self.log.id, "weId": self.we.id,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["exercice"]["nom"], "Développé couché barre")
+        self.assertIsNone(resp.json()["exercice"]["substitution"])
+        from tracking.models import SubstitutionSeance
+
+        self.assertFalse(SubstitutionSeance.objects.filter(workout_log=self.log).exists())
+
+
 class EnrichirGuidesCommandTests(TestCase):
     """Command `enrichir_guides` : idempotente, sûre sans clé, --force."""
 
