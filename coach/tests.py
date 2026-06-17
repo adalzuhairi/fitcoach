@@ -234,3 +234,60 @@ class GenerateRecipesTests(TestCase):
         self.assertEqual(len(recettes2), 3)
         # Dédoublonnage par nom : pas de duplication en base.
         self.assertEqual(Recipe.objects.count(), 3)
+
+
+class GenerateExerciseGuideTests(TestCase):
+    """Génération IA du guide débutant d'un exercice (sécurité/erreurs/muscles)."""
+
+    def setUp(self):
+        from training.models import GroupeMusculaire, TypeExercice
+
+        self.exo = Exercise.objects.create(
+            nom="Squat barre",
+            groupe_musculaire=GroupeMusculaire.JAMBES,
+            type=TypeExercice.COMPOSE,
+            description_technique="Barre sur le haut du dos…",
+        )
+        self.reponse = {
+            "consignes_securite": "Garde le dos gainé.\nNe laisse pas les genoux rentrer.",
+            "erreurs_frequentes": "Talons qui décollent.\nDescente trop rapide.",
+            "muscles_secondaires": "ischio-jambiers, fessiers",
+        }
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_remplit_les_champs_et_marque_a_valider(self):
+        with mock.patch.object(services, "_call_claude_guide", return_value=self.reponse) as m:
+            ok = services.generate_exercise_guide(self.exo)
+
+        m.assert_called_once()
+        self.assertTrue(ok)
+        self.exo.refresh_from_db()
+        self.assertEqual(self.exo.muscles_secondaires, "ischio-jambiers, fessiers")
+        self.assertIn("dos gainé", self.exo.consignes_securite)
+        self.assertIn("Talons", self.exo.erreurs_frequentes)
+        self.assertTrue(self.exo.guide_a_valider)
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_sans_cle_api_ne_fait_rien(self):
+        with mock.patch.object(services, "_call_claude_guide") as m:
+            ok = services.generate_exercise_guide(self.exo)
+
+        m.assert_not_called()
+        self.assertFalse(ok)
+        self.exo.refresh_from_db()
+        self.assertFalse(self.exo.a_un_guide)
+        self.assertFalse(self.exo.guide_a_valider)
+
+    @override_settings(ANTHROPIC_API_KEY="cle-test")
+    def test_echec_appel_ne_plante_pas(self):
+        with mock.patch.object(services, "_call_claude_guide", side_effect=RuntimeError("boom")):
+            ok = services.generate_exercise_guide(self.exo)
+
+        self.assertFalse(ok)
+        self.exo.refresh_from_db()
+        self.assertFalse(self.exo.a_un_guide)
+
+    def test_prompt_contient_le_nom_et_le_muscle(self):
+        prompt = services._build_guide_prompt(self.exo)
+        self.assertIn("Squat barre", prompt)
+        self.assertIn("Jambes", prompt)

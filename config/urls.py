@@ -30,6 +30,7 @@ urlpatterns = [
     path("compte/", include("accounts.urls")),
     path("entrainement/", include("training.urls")),
     path("nutrition/", include("nutrition.urls")),
+    path("complements/", include("supplements.urls")),
     # tracking : /dashboard/, /mesures/, /progression/.
     path("", include("tracking.urls")),
 ]

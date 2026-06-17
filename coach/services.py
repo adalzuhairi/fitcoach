@@ -437,3 +437,93 @@ def generate_recipes(profile, meal, n: int = 3) -> list:
         recettes.append(recipe)
 
     return recettes
+
+
+# --- Guide débutant d'un exercice (sécurité / erreurs / muscles secondaires) ---
+
+# Schéma JSON strict du guide débutant imposé à Claude.
+GUIDE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "consignes_securite": {"type": "string"},
+        "erreurs_frequentes": {"type": "string"},
+        "muscles_secondaires": {"type": "string"},
+    },
+    "required": ["consignes_securite", "erreurs_frequentes", "muscles_secondaires"],
+    "additionalProperties": False,
+}
+
+
+def _build_guide_prompt(exercise) -> str:
+    """Prompt pour générer le guide débutant d'un exercice donné."""
+    return (
+        "Tu es un coach sportif. Rédige un guide débutant en français pour aider à "
+        "exécuter cet exercice de musculation correctement et sans se blesser.\n\n"
+        f"Exercice : {exercise.nom}\n"
+        f"Muscle primaire : {exercise.get_groupe_musculaire_display()}\n"
+        f"Type : {exercise.get_type_display()}\n"
+        f"Technique connue : {exercise.description_technique or '(non renseignée)'}\n\n"
+        "Réponds en JSON avec exactement ces clés :\n"
+        "- consignes_securite : 2 à 4 points clés de sécurité (dos, articulations, "
+        "respiration, charge), en phrases courtes séparées par des retours à la ligne.\n"
+        "- erreurs_frequentes : 2 à 4 erreurs typiques de débutant à éviter, idem.\n"
+        "- muscles_secondaires : les muscles assistants, en texte court séparé par des "
+        "virgules (ex: triceps, deltoïde antérieur). Vide si l'exercice est très isolé."
+    )
+
+
+def _call_claude_guide(prompt: str) -> dict:
+    """Appelle l'API Claude et renvoie le guide en dict (JSON strict).
+
+    Lève une exception si l'appel échoue (gestion par l'appelant). Le SDK
+    retente automatiquement (max_retries=1).
+    """
+    import anthropic
+
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, max_retries=1)
+    response = client.messages.create(
+        model=settings.ANTHROPIC_MODEL,
+        max_tokens=1500,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+        output_config={
+            "format": {"type": "json_schema", "schema": GUIDE_SCHEMA},
+        },
+    )
+    text = next(block.text for block in response.content if block.type == "text")
+    return json.loads(text)
+
+
+def generate_exercise_guide(exercise) -> bool:
+    """Génère et enregistre le guide débutant d'un exercice via l'IA.
+
+    Remplit consignes_securite / erreurs_frequentes / muscles_secondaires et
+    marque `guide_a_valider=True` (relecture admin avant de figer dans la fixture).
+    Sûr et non bloquant : renvoie False sans rien modifier si la clé API est
+    absente ou si l'appel échoue ; True si le guide a été écrit.
+    """
+    if not settings.ANTHROPIC_API_KEY:
+        logger.warning(
+            "ANTHROPIC_API_KEY absente — guide non généré pour %s", exercise.nom
+        )
+        return False
+
+    try:
+        data = _call_claude_guide(_build_guide_prompt(exercise))
+    except Exception:  # noqa: BLE001 — on n'interrompt jamais l'enrichissement en lot
+        logger.exception("Échec de la génération du guide IA pour %s", exercise.nom)
+        return False
+
+    exercise.consignes_securite = (data.get("consignes_securite") or "").strip()
+    exercise.erreurs_frequentes = (data.get("erreurs_frequentes") or "").strip()
+    exercise.muscles_secondaires = (data.get("muscles_secondaires") or "").strip()
+    exercise.guide_a_valider = True
+    exercise.save(
+        update_fields=[
+            "consignes_securite",
+            "erreurs_frequentes",
+            "muscles_secondaires",
+            "guide_a_valider",
+        ]
+    )
+    return True

@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -40,8 +41,51 @@ def dashboard(request):
             "prochaine_seance": prochaine,
             "poids_actuel": services.poids_actuel(request.user, profile),
             "historique_poids": historique,
+            "hydratation": services.resume_hydratation(request.user, profile),
+            "tutoriel_vu": getattr(profile, "tutoriel_vu", False),
+            "dashboard_init": {
+                "serverAuth": request.user.is_authenticated,
+                "serverVu": getattr(profile, "tutoriel_vu", False),
+            },
         },
     )
+
+
+# Fourchette acceptée pour un ajout d'eau (les boutons rapides valent 250/500,
+# mais on tolère toute saisie raisonnable pour de futurs boutons / saisie libre).
+EAU_MIN_ML = 1
+EAU_MAX_ML = 2000
+
+
+@login_required
+@require_POST
+def ajouter_eau(request):
+    """Ajoute une quantité d'eau à la consommation du jour (scopé request.user).
+
+    Valide une fourchette raisonnable (1–2000 ml) et rejette en 400 hors plage.
+    Répond en JSON (résumé à jour) pour la MAJ live Alpine ; sinon redirige
+    vers le dashboard (fallback sans JS).
+    """
+    profile = Profile.objects.filter(user=request.user).first()
+    if profile is None:
+        return redirect("accounts:onboarding")
+
+    try:
+        quantite = int(request.POST.get("quantite_ml", ""))
+    except (TypeError, ValueError):
+        quantite = 0
+
+    if not (EAU_MIN_ML <= quantite <= EAU_MAX_ML):
+        return JsonResponse(
+            {"ok": False, "erreur": "Quantité invalide."}, status=400
+        )
+
+    services.ajouter_eau(request.user, quantite)
+    resume = services.resume_hydratation(request.user, profile)
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"ok": True, **resume})
+    return redirect("tracking:dashboard")
 
 
 def _tours_disponibles(serie):

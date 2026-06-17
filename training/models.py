@@ -60,10 +60,43 @@ class Exercise(models.Model):
         choices=Niveau.choices,
         default=Niveau.DEBUTANT,
     )
-    description_technique = models.TextField("description technique", blank=True)
+    description_technique = models.TextField(
+        "positionnement & exécution",
+        blank=True,
+        help_text="Mise en place du corps et déroulé du mouvement.",
+    )
+    # Guide débutant structuré (rempli à la main ou via l'IA, cf. coach.services).
+    consignes_securite = models.TextField(
+        "consignes de sécurité",
+        blank=True,
+        help_text="Points clés pour exécuter sans se blesser.",
+    )
+    erreurs_frequentes = models.TextField(
+        "erreurs fréquentes",
+        blank=True,
+        help_text="Erreurs typiques de débutant à éviter.",
+    )
+    muscles_secondaires = models.CharField(
+        "muscles secondaires",
+        max_length=255,
+        blank=True,
+        help_text="Muscles assistants (texte libre, ex: triceps, deltoïde antérieur). "
+        "Le groupe musculaire reste le muscle primaire.",
+    )
     video_url = models.URLField("URL vidéo", blank=True)
     # Exercice créé automatiquement par l'IA, à valider par un admin.
     a_valider = models.BooleanField("à valider", default=False)
+    # Guide (sécurité/erreurs/muscles) généré par l'IA, en attente de relecture.
+    guide_a_valider = models.BooleanField("guide à valider", default=False)
+
+    @property
+    def a_un_guide(self) -> bool:
+        """True si au moins une section du guide débutant est renseignée."""
+        return bool(
+            self.consignes_securite
+            or self.erreurs_frequentes
+            or self.muscles_secondaires
+        )
 
     class Meta:
         verbose_name = "exercice"

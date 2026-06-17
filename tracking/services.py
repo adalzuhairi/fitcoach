@@ -22,6 +22,10 @@ import datetime
 # Mensurations optionnelles tracées sur les graphiques (hors poids).
 CHAMPS_TOURS = ("tour_taille", "tour_bras", "tour_poitrine", "tour_cuisses")
 
+# Hydratation — base de référence et bonus les jours d'entraînement.
+EAU_ML_PAR_KG = 35
+EAU_BONUS_ENTRAINEMENT_ML = 500
+
 
 def etapes_demarrage(user):
     """Checklist de démarrage du dashboard, reflétant l'état réel du compte.
@@ -57,6 +61,74 @@ def etapes_demarrage(user):
         },
     ]
     return {"etapes": etapes, "tout_termine": all(e["done"] for e in etapes)}
+
+
+def objectif_hydratation(profile, jour_entrainement=False):
+    """Objectif d'eau du jour en ml : 35 ml/kg de poids de corps, + bonus.
+
+    Le bonus (`EAU_BONUS_ENTRAINEMENT_ML`) s'ajoute les jours où l'utilisateur
+    s'entraîne (transpiration). Renvoie un entier (ml).
+    """
+    base = round(EAU_ML_PAR_KG * float(profile.poids_kg))
+    if jour_entrainement:
+        base += EAU_BONUS_ENTRAINEMENT_ML
+    return base
+
+
+def est_jour_entrainement(user, date=None):
+    """True si l'utilisateur a loggé une séance ce jour (signal concret)."""
+    from tracking.models import WorkoutLog
+
+    date = date or datetime.date.today()
+    return WorkoutLog.objects.filter(user=user, date=date).exists()
+
+
+def ajouter_eau(user, quantite_ml, date=None):
+    """Ajoute `quantite_ml` à la consommation du jour (incrément atomique).
+
+    Crée la ligne (user, date) si absente, sinon cumule via F() pour éviter
+    toute condition de course. Renvoie l'instance WaterIntake à jour.
+    """
+    from django.db.models import F
+
+    from tracking.models import WaterIntake
+
+    date = date or datetime.date.today()
+    intake, cree = WaterIntake.objects.get_or_create(
+        user=user, date=date, defaults={"quantite_ml": quantite_ml}
+    )
+    if not cree:
+        intake.quantite_ml = F("quantite_ml") + quantite_ml
+        intake.save(update_fields=["quantite_ml"])
+        intake.refresh_from_db()
+    return intake
+
+
+def hydratation_du_jour(user, date=None):
+    """Quantité d'eau bue aujourd'hui (ml), 0 si aucune entrée."""
+    from tracking.models import WaterIntake
+
+    date = date or datetime.date.today()
+    intake = WaterIntake.objects.filter(user=user, date=date).first()
+    return intake.quantite_ml if intake is not None else 0
+
+
+def resume_hydratation(user, profile, date=None):
+    """Résumé du jour pour le dashboard : bu / objectif / % / jour d'entraînement.
+
+    Le pourcentage est borné à 100 pour l'affichage de la barre de progression.
+    """
+    date = date or datetime.date.today()
+    jour_entrainement = est_jour_entrainement(user, date)
+    objectif = objectif_hydratation(profile, jour_entrainement)
+    bu = hydratation_du_jour(user, date)
+    pourcentage = min(100, round(bu / objectif * 100)) if objectif else 0
+    return {
+        "bu_ml": bu,
+        "objectif_ml": objectif,
+        "pourcentage": pourcentage,
+        "jour_entrainement": jour_entrainement,
+    }
 
 
 def prochaine_seance(user, program):
@@ -163,40 +235,110 @@ def historique_mesures(user, limit=None):
     return serie
 
 
+def substitutions_map(user):
+    """Carte des substitutions de l'utilisateur : (log_id, we_id) → exercise_id.
+
+    Permet d'attribuer chaque série loggée à l'exercice RÉELLEMENT réalisé : si
+    un créneau a été substitué ce jour-là, la clé renvoie l'id du substitut,
+    sinon l'absence de clé signifie « l'exercice du programme ». Indispensable
+    pour que progression et suggestions ne mélangent pas deux mouvements.
+    """
+    from tracking.models import SubstitutionSeance
+
+    return {
+        (s.workout_log_id, s.workout_exercise_id): s.exercise_substitut_id
+        for s in SubstitutionSeance.objects.filter(workout_log__user=user)
+    }
+
+
+def substituer_exercice(workout_log, workout_exercise, exercise_substitut):
+    """Trace une substitution d'exercice pour la séance du jour (option B).
+
+    Le programme reste intact : seule la séance loggée porte la substitution.
+    Les séries déjà enregistrées sur ce créneau sont supprimées — elles
+    portaient sur l'ancien mouvement et ne s'appliquent pas au substitut.
+    Idempotent : re-substituer met simplement à jour la cible.
+    """
+    from tracking.models import SetLog, SubstitutionSeance
+
+    SetLog.objects.filter(
+        workout_log=workout_log, workout_exercise=workout_exercise
+    ).delete()
+    sub, _ = SubstitutionSeance.objects.update_or_create(
+        workout_log=workout_log,
+        workout_exercise=workout_exercise,
+        defaults={"exercise_substitut": exercise_substitut},
+    )
+    return sub
+
+
+def annuler_substitution(workout_log, workout_exercise):
+    """Annule la substitution du jour (undo) : on repart de l'exercice du programme.
+
+    Supprime aussi les séries loggées sur le substitut, pour la même raison que
+    `substituer_exercice` : elles portaient sur un autre mouvement.
+    """
+    from tracking.models import SetLog, SubstitutionSeance
+
+    SetLog.objects.filter(
+        workout_log=workout_log, workout_exercise=workout_exercise
+    ).delete()
+    SubstitutionSeance.objects.filter(
+        workout_log=workout_log, workout_exercise=workout_exercise
+    ).delete()
+
+
 def exercices_logges(user):
-    """Exercices pour lesquels l'utilisateur a enregistré au moins une série."""
+    """Exercices pour lesquels l'utilisateur a enregistré au moins une série.
+
+    Attribue chaque série à l'exercice EFFECTIF (substitution prise en compte) :
+    une série faite sur un substitut compte pour le substitut, pas pour
+    l'exercice du programme.
+    """
     from training.models import Exercise
     from tracking.models import SetLog
 
-    ids = (
-        SetLog.objects.filter(workout_log__user=user)
-        .values_list("workout_exercise__exercise", flat=True)
-        .distinct()
-    )
+    subs = substitutions_map(user)
+    ids = {
+        subs.get((log_id, we_id), exercise_id)
+        for log_id, we_id, exercise_id in SetLog.objects.filter(
+            workout_log__user=user
+        ).values_list(
+            "workout_log_id", "workout_exercise_id", "workout_exercise__exercise_id"
+        )
+    }
     return list(Exercise.objects.filter(id__in=ids).order_by("nom"))
 
 
 def progression_charge(user, exercise):
     """Charge maximale par séance (date) pour un exercice, ordre chronologique.
 
-    Agrège toutes les séries de l'exercice (quelle que soit la journée/le
-    programme) : un point = la charge la plus lourde soulevée ce jour-là.
+    Agrège toutes les séries dont l'exercice EFFECTIF est `exercise` (un jour
+    substitué bascule ses séries vers le substitut) : un point = la charge la
+    plus lourde soulevée ce jour-là.
     """
-    from django.db.models import Max
-
     from tracking.models import SetLog
 
-    lignes = (
-        SetLog.objects.filter(
-            workout_log__user=user, workout_exercise__exercise=exercise
-        )
-        .values("workout_log__date")
-        .annotate(charge_max=Max("charge_kg"))
-        .order_by("workout_log__date")
+    subs = substitutions_map(user)
+    par_date = {}
+    rows = SetLog.objects.filter(workout_log__user=user).values_list(
+        "workout_log_id",
+        "workout_exercise_id",
+        "workout_exercise__exercise_id",
+        "workout_log__date",
+        "charge_kg",
     )
+    for log_id, we_id, exercise_id, date, charge in rows:
+        effectif = subs.get((log_id, we_id), exercise_id)
+        if effectif != exercise.id:
+            continue
+        charge = float(charge)
+        if date not in par_date or charge > par_date[date]:
+            par_date[date] = charge
+
     return [
-        {"date": ligne["workout_log__date"].isoformat(), "charge": float(ligne["charge_max"])}
-        for ligne in lignes
+        {"date": date.isoformat(), "charge": charge}
+        for date, charge in sorted(par_date.items())
     ]
 
 
